@@ -6,71 +6,164 @@
 
 ---
 
-## 🌟 Overview | 项目概览
+# Part 1 — English
+
+## 👤 About Us
+
+**Jammie** — Former Tencent iLab, now an AI hardware entrepreneur.  
+**Company:** [someonewaits.com](https://someonewaits.com)
+
+---
+
+## 🌟 Overview
 
 **OpenEvolant** is an open-source autonomous evolution engine built for the **OpenClaw** and **MCP** ecosystem. It treats Agent logic not as static code, but as heritable **Gens (Genes)**. By introducing simulated pressure, mutation, and natural selection, OpenEvolant automatically compresses and optimizes redundant reasoning paths into high-performance **Apex Skills**.
 
-**OpenEvolant** 是专为 **OpenClaw** 与 **MCP** 生态打造的开源自主进化引擎。它不将 Agent 逻辑视为死板的代码，而是视其为可遗传的 **Gens (基因)**。通过引入模拟压力、变异与自然选择，OpenEvolant 能够自动将冗余的推理路径压缩并优化为高性能的 **Apex Skills (巅峰技能)**。
-
 ---
 
-## ⚔️ Comparison | 深度对比
+## ⚔️ Comparison
 
 | Dimension | Traditional Agents (e.g., OpenClaw) | **OpenEvolant** |
 | :--- | :--- | :--- |
-| **Logic Basis / 逻辑本质** | **Static Prompts / 静态指令** | **Evolving Gens / 进化基因** |
-| **Optimization / 优化方式** | Manual Tuning / 手动调优 | Natural Selection / 自然选择 |
-| **Cost Curve / 成本曲线** | Consistently High / 持续高昂 | Collapses via Iteration / 随迭代坍缩 |
-| **Output / 核心产物** | Execution results / 执行结果 | Evolvable Asset (.gen) / 进化资产 |
+| **Logic Basis** | Static Prompts | Evolving Gens |
+| **Optimization** | Manual Tuning | Natural Selection |
+| **Cost Curve** | Consistently High | Collapses via Iteration |
+| **Output** | Execution results | Evolvable Asset (.gen) |
 
 ---
 
-## 🛠️ Ecosystem Role | 生态位定位
+## 🛠️ Ecosystem Role
 
-OpenEvolant acts as a "Parasitic Brain" that enhances existing host frameworks.  
-OpenEvolant 作为一个“寄生大脑”，负责增强现有的宿主框架。
+OpenEvolant acts as a "Parasitic Brain" that enhances existing host frameworks.
 
-
-
-* **vs. OpenClaw**: OpenClaw provides the **"Muscles"** (task orchestration). OpenEvolant provides the **"Prefrontal Cortex"** (logic optimization).  
-    *OpenClaw 提供“肌肉”（任务编排），OpenEvolant 提供“前额叶”（逻辑优化）。*
-* **vs. MCP**: MCP provides the **"Tools"** (static resources). OpenEvolant acts as the **"Dispatcher"** (learning the most efficient way to call them).  
-    *MCP 提供“工具”（静态资源），OpenEvolant 充当“调度员”（学习最高效的调用方式）。*
+* **vs. OpenClaw**: OpenClaw provides the **"Muscles"** (task orchestration). OpenEvolant provides the **"Prefrontal Cortex"** (logic optimization).
+* **vs. MCP**: MCP provides the **"Tools"** (static resources). OpenEvolant acts as the **"Dispatcher"** (learning the most efficient way to call them).
 
 ---
 
-## 🖥️ Evolution GUI | 进化可视化
+## 🖥️ Evolution GUI
 
+Through **Evolant Studio**, you can witness digital Darwinism in real-time:
 
-
-Through the **Evolant Studio**, you can witness digital Darwinism in real-time:  
-通过 **Evolant Studio**，你可以实时见证数字达尔文主义：
-
-* **Mutation Tracking**: Watch prompt fragments recombine to find the "optimal sequence."  
-    **变异追踪**：观察 Prompt 碎片如何重组以寻找“最优序列”。
-* **Survival of the Fittest**: See high-cost, low-accuracy genes being phased out by the `Evaluator`.  
-    **优胜劣汰**：观察高成本、低准确率的基因如何被 `Evaluator` 淘汰。
-* **Gene Crystallization**: Witness raw logic settling into lightweight, distributable `.gen` files.  
-    **基因沉淀**：见证原始逻辑如何凝结为轻量、可分发的 `.gen` 文件。
+* **Mutation Tracking**: Watch prompt fragments recombine to find the "optimal sequence."
+* **Survival of the Fittest**: See high-cost, low-accuracy genes being phased out by the `Evaluator`.
+* **Gene Crystallization**: Witness raw logic settling into lightweight, distributable `.gen` files.
 
 ---
 
-## 🚀 Getting Started | 快速开始
+## 🚀 Getting Started
 
-### 1. 克隆与安装 | Clone & Install
+### 1. Clone & Install
 ```bash
 git clone <repo-url>
 cd openEvolant
 npm install
 ```
 
-### 2. 构建 | Build
+### 2. Build
 ```bash
 npm run build
 ```
-- 会依次构建 `packages/*`、`studio` 和 CLI（`@openevolant/cli`）。
+Builds `packages/*`, `studio`, and CLI (`@openevolant/cli`) in order.
 
-### 3. 一键启动 Web GUI | Start
+### 3. Start Web GUI
+```bash
+npm start
+# or
+node packages/cli/dist/cli.js start
+# or (after global install)
+openevolant
+```
+Starts the local server hosting Evolant Studio; default: http://localhost:3000.  
+Options: `--port=4000`, `--data-dir=./data`, `--config-dir=./config`, `--host=0.0.0.0`.  
+Help: `openevolant --help`; version: `openevolant --version`.
+
+### 4. Development
+```bash
+npm run dev
+```
+Starts the Evolant Studio dev server (Vite) and opens chat / evolution management / settings in the browser.
+
+### 5. Global Install (TBD)
+```bash
+npm install -g openevolant
+```
+
+---
+
+## 📚 Documentation
+
+| Doc | Description |
+| :--- | :--- |
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | Architecture and design |
+| [FOLDER_STRUCTURE](docs/FOLDER_STRUCTURE.md) | Project folder structure |
+| [SPEC_genes](docs/SPEC_genes.md) | Genes (Gens) specification |
+| [SPEC_evaluator](docs/SPEC_evaluator.md) | Evaluator specification |
+| [VERSIONS](docs/VERSIONS.md) | Version notes |
+
+---
+
+# Part 2 — 中文
+
+## 👤 关于我们
+
+**Jammie** — 前腾讯 iLab，目前 AI 硬件创业者。  
+**公司：** [someonewaits.com](https://someonewaits.com)
+
+---
+
+## 🌟 项目概览
+
+**OpenEvolant** 是专为 **OpenClaw** 与 **MCP** 生态打造的开源自主进化引擎。它不将 Agent 逻辑视为死板的代码，而是视其为可遗传的 **Gens（基因）**。通过引入模拟压力、变异与自然选择，OpenEvolant 能够自动将冗余的推理路径压缩并优化为高性能的 **Apex Skills（巅峰技能）**。
+
+---
+
+## ⚔️ 深度对比
+
+| 维度 | 传统 Agent（如 OpenClaw） | **OpenEvolant** |
+| :--- | :--- | :--- |
+| **逻辑本质** | 静态指令 | 进化基因 |
+| **优化方式** | 手动调优 | 自然选择 |
+| **成本曲线** | 持续高昂 | 随迭代坍缩 |
+| **核心产物** | 执行结果 | 进化资产（.gen） |
+
+---
+
+## 🛠️ 生态位定位
+
+OpenEvolant 作为一个「寄生大脑」，负责增强现有的宿主框架。
+
+* **与 OpenClaw**：OpenClaw 提供「肌肉」（任务编排），OpenEvolant 提供「前额叶」（逻辑优化）。
+* **与 MCP**：MCP 提供「工具」（静态资源），OpenEvolant 充当「调度员」（学习最高效的调用方式）。
+
+---
+
+## 🖥️ 进化可视化
+
+通过 **Evolant Studio**，你可以实时见证数字达尔文主义：
+
+* **变异追踪**：观察 Prompt 碎片如何重组以寻找「最优序列」。
+* **优胜劣汰**：观察高成本、低准确率的基因如何被 `Evaluator` 淘汰。
+* **基因沉淀**：见证原始逻辑如何凝结为轻量、可分发的 `.gen` 文件。
+
+---
+
+## 🚀 快速开始
+
+### 1. 克隆与安装
+```bash
+git clone <repo-url>
+cd openEvolant
+npm install
+```
+
+### 2. 构建
+```bash
+npm run build
+```
+会依次构建 `packages/*`、`studio` 和 CLI（`@openevolant/cli`）。
+
+### 3. 一键启动 Web GUI
 ```bash
 npm start
 # 或
@@ -78,23 +171,29 @@ node packages/cli/dist/cli.js start
 # 或（全局安装后）
 openevolant
 ```
-- 启动本地服务，托管 Evolant Studio 静态资源；默认 http://localhost:3000。
-- 选项：`--port=4000`、`--data-dir=./data`、`--config-dir=./config`、`--host=0.0.0.0`。
-- 帮助与版本：`node packages/cli/dist/cli.js --help`、`node packages/cli/dist/cli.js --version`。
-- **本地用「命令」测试**：可不做 `npm link`，直接 `npm start`；若想用 `openevolant` 命令，可用 **`npx openevolant`**（在项目根执行，会调当前包）。
+启动本地服务，托管 Evolant Studio 静态资源；默认 http://localhost:3000。  
+选项：`--port=4000`、`--data-dir=./data`、`--config-dir=./config`、`--host=0.0.0.0`。  
+帮助：`openevolant --help`；版本：`openevolant --version`。
 
-### 4. 开发 | Development
+### 4. 开发
 ```bash
 npm run dev
 ```
-- 启动 Evolant Studio 开发服务器（Vite），在浏览器中打开聊天 / 进化管理 / 设置占位页。
+启动 Evolant Studio 开发服务器（Vite），在浏览器中打开聊天 / 进化管理 / 设置占位页。
 
-### 5. 全局命令（可选）| Global command (optional)
-- **发布后**：`npm install -g openevolant` 即可使用 `openevolant` 命令。
-- **开发时想用全局命令**：
-  - 推荐：**手动创建符号链接**（不依赖 npm link，避免 EACCES）：
-    ```bash
-    # 将 /path/to/openEvolant 换成你的项目绝对路径（在项目根执行 pwd 可得）
-    sudo ln -sf /path/to/openEvolant/packages/cli/dist/cli.js /usr/local/bin/openevolant
-    ```
-  - 或使用 **`npx openevolant`**（在项目根执行）；或把 npm 全局目录改到用户目录后再 `npm link`。
+### 5. 全局安装（待发布）
+```bash
+npm install -g openevolant
+```
+
+---
+
+## 📚 Docs 快速跳转
+
+| 文档 | 说明 |
+| :--- | :--- |
+| [ARCHITECTURE](docs/ARCHITECTURE.md) | 架构与设计 |
+| [FOLDER_STRUCTURE](docs/FOLDER_STRUCTURE.md) | 项目目录结构 |
+| [SPEC_genes](docs/SPEC_genes.md) | 基因（Gens）规范 |
+| [SPEC_evaluator](docs/SPEC_evaluator.md) | 评估器（Evaluator）规范 |
+| [VERSIONS](docs/VERSIONS.md) | 版本说明 |

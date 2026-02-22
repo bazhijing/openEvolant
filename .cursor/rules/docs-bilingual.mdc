@@ -1,0 +1,37 @@
+---
+description: Documentation writing style — English first, then Chinese, no mixing
+globs: docs/**
+alwaysApply: false
+---
+
+# Documentation: Bilingual Structure
+
+When writing or editing files under `docs/`, use **two separate parts**. Do not mix English and Chinese in the same section or paragraph.
+
+## Structure
+
+1. **Part 1 — English only**  
+   Write the full content in English first (titles, body, code comments in prose). No Chinese in this part.
+
+2. **Part 2 — 中文 only**  
+   After the English part, provide the same content entirely in Chinese. No English in this part.
+
+## Format
+
+- Use a clear separator between the two parts (e.g. `---`, or a heading like "中文说明").
+- Keep section order and structure the same in both parts so readers can match them.
+- Do not use inline mixing (e.g. avoid "架构总览 | High-Level Architecture" in one heading; use one language per part).
+
+## Example
+
+```markdown
+# Module Overview
+
+This module handles...
+
+---
+
+# 模块概览
+
+本模块负责...
+```
