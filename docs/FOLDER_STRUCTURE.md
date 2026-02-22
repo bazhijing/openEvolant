@@ -17,8 +17,11 @@ openEvolant/
 ├── docs/                 # 项目文档
 ├── packages/             # 核心逻辑（进化层 + 管线 + LLM），均为 TypeScript
 ├── studio/               # Evolant Studio Web GUI，TypeScript 前端
-├── data/                 # 运行时数据（.genes、会话历史等，gitignore）
-├── config/               # 默认/示例配置（如 .evaluator 模板）
+├── openevolant/          # 运行时应用根目录（gitignore），默认 --root 指向此处
+│   ├── config/           # 实际使用的配置（llm、evaluator 等）
+│   ├── data/             # 基因池、会话、评估结果等
+│   └── skills/           # skill 文件等（预留）
+├── config/               # 仓库内示例/种子配置（首次运行可复制到 openevolant/config/）
 ├── README.md
 └── LICENSE
 ```
@@ -71,32 +74,41 @@ Evolant Studio：v0.1 唯一入口，**TypeScript** Web GUI。构建产物（如
 
 ---
 
-## data/
+## 运行时目录：openevolant/（默认 --root）
 
-运行时生成，建议加入 `.gitignore`。
+打包或开发启动时，配置、数据、skill 等**统一存放在一个应用根目录**下，默认名为 `openevolant`（可通过 `--root=<路径>` 指定）。与当前工作目录无关时，dev 与打包后行为一致。
 
 | 路径 | 说明 |
 |------|------|
-| `data/genes/` | `.genes` 文件或基因池存储 |
-| `data/sessions/` | 各 session 的对话历史与 memory |
-| `data/evaluator/` | 运行时评估结果或缓存（可选） |
+| `openevolant/config/` | 实际使用的配置目录 |
+| `openevolant/config/llm/` | LLM 配置（.llm.json），详见 [SPEC_llm.md](./SPEC_llm.md) |
+| `openevolant/config/evaluator/` | 评估配置（.evaluator 等） |
+| `openevolant/data/` | 运行时数据 |
+| `openevolant/data/genes/` | `.genes` 文件或基因池存储 |
+| `openevolant/data/sessions/` | 各 session 的对话历史与 memory |
+| `openevolant/data/evaluator/` | 运行时评估结果或缓存（可选） |
+| `openevolant/skills/` | skill 文件（预留） |
+
+该目录建议加入 `.gitignore`。
 
 ---
 
-## config/
+## config/（仓库内示例）
+
+仓库内仅存放**示例配置**，供首次运行时的复制或参考；实际读写以 `openevolant/config/` 为准。
 
 | 路径 | 说明 |
 |------|------|
-| `config/` | 默认或示例配置 |
-| `config/evaluator/` | 示例 `.evaluator` 配置（时间、金钱、循环次数、中断条件等） |
+| `config/evaluator/` | 示例 `.evaluator` 配置 |
+| `config/llm/` | 示例 `.llm` 配置（首次运行可被复制到 openevolant/config/llm/） |
 
 ---
 
 ## 与 v0.1 的对应关系
 
-- **聊天**：`studio` 聊天页 → `packages/gateway` → `packages/agent-runner` → `packages/llm` → `packages/agentic-loop`，会话与历史落 `data/sessions/`。
-- **进化管理**：`studio` 进化管理页 读/写 `packages/genes`、`packages/evaluator`，触发 `packages/evolution`，展示 `.genes` 与统计；评估配置来自 `config/evaluator/` 或用户保存的 `.evaluator`。
-- **任务意图 → skill / .genes**：在 `studio` 创建任务意图，对应新 skill 或已有 skill，进化过程写 `data/genes/`，迭代信息写入 `.genes`。
+- **聊天**：`studio` 聊天页 → `packages/gateway` → `packages/agent-runner` → `packages/llm` → `packages/agentic-loop`，会话与历史落 `openevolant/data/sessions/`。
+- **进化管理**：`studio` 进化管理页 读/写 `packages/genes`、`packages/evaluator`，触发 `packages/evolution`，展示 `.genes` 与统计；评估配置来自 `openevolant/config/evaluator/` 或用户保存的 `.evaluator`。
+- **任务意图 → skill / .genes**：在 `studio` 创建任务意图，对应新 skill 或已有 skill，进化过程写 `openevolant/data/genes/`，迭代信息写入 `.genes`。
 
 随实现可增删子目录，本文档随仓库实际结构更新。
 

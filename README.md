@@ -10,20 +10,20 @@
 
 ## 👤 About Us
 
-**Jammie** — Former Tencent iLab, now an AI hardware entrepreneur.  
+**Jammie** — Former Tencent AiLab, now an AI hardware entrepreneur.  
 **Company:** [someonewaits.com](https://someonewaits.com)
 
 ---
 
 ## 🌟 Overview
 
-**OpenEvolant** is an open-source autonomous evolution engine built for the **OpenClaw** and **MCP** ecosystem. It treats Agent logic not as static code, but as heritable **Gens (Genes)**. By introducing simulated pressure, mutation, and natural selection, OpenEvolant automatically compresses and optimizes redundant reasoning paths into high-performance **Apex Skills**.
+**OpenEvolant** is an open-source autonomous evolution engine built for **Skills** and **MCP**. It treats Agent logic not as static code, but as heritable **Gens (Genes)**. By introducing simulated pressure, mutation, and natural selection, OpenEvolant automatically compresses and optimizes redundant reasoning paths into high-performance **Apex Skills**.
 
 ---
 
 ## ⚔️ Comparison
 
-| Dimension | Traditional Agents (e.g., OpenClaw) | **OpenEvolant** |
+| Dimension | Traditional Agents (e.g., static skills) | **OpenEvolant** |
 | :--- | :--- | :--- |
 | **Logic Basis** | Static Prompts | Evolving Gens |
 | **Optimization** | Manual Tuning | Natural Selection |
@@ -36,7 +36,7 @@
 
 OpenEvolant acts as a "Parasitic Brain" that enhances existing host frameworks.
 
-* **vs. OpenClaw**: OpenClaw provides the **"Muscles"** (task orchestration). OpenEvolant provides the **"Prefrontal Cortex"** (logic optimization).
+* **vs. Skills**: Skills provide the **"Muscles"** (task execution). OpenEvolant provides the **"Prefrontal Cortex"** (logic optimization).
 * **vs. MCP**: MCP provides the **"Tools"** (static resources). OpenEvolant acts as the **"Dispatcher"** (learning the most efficient way to call them).
 
 ---
@@ -75,7 +75,8 @@ node packages/cli/dist/cli.js start
 openevolant
 ```
 Starts the local server hosting Evolant Studio; default: http://localhost:3000.  
-Options: `--port=4000`, `--data-dir=./data`, `--config-dir=./config`, `--host=0.0.0.0`.  
+**Runtime directory:** All config (LLM, evaluator), data (genes, sessions), and skills live under a single app root; default `./openevolant` (override with `--root=<path>`). So both dev and packaged runs use the same layout: `openevolant/config/`, `openevolant/data/`, `openevolant/skills/`.  
+Options: `--port=4000`, `--root=./openevolant`, `--host=0.0.0.0`.  
 Help: `openevolant --help`; version: `openevolant --version`.
 
 ### 4. Development
@@ -107,20 +108,20 @@ npm install -g openevolant
 
 ## 👤 关于我们
 
-**Jammie** — 前腾讯 iLab，目前 AI 硬件创业者。  
+**Jammie** — 前腾讯 AiLab，目前 AI 硬件创业者。  
 **公司：** [someonewaits.com](https://someonewaits.com)
 
 ---
 
 ## 🌟 项目概览
 
-**OpenEvolant** 是专为 **OpenClaw** 与 **MCP** 生态打造的开源自主进化引擎。它不将 Agent 逻辑视为死板的代码，而是视其为可遗传的 **Gens（基因）**。通过引入模拟压力、变异与自然选择，OpenEvolant 能够自动将冗余的推理路径压缩并优化为高性能的 **Apex Skills（巅峰技能）**。
+**OpenEvolant** 是专为 **Skills** 与 **MCP** 打造的开源自主进化引擎。它不将 Agent 逻辑视为死板的代码，而是视其为可遗传的 **Gens（基因）**。通过引入模拟压力、变异与自然选择，OpenEvolant 能够自动将冗余的推理路径压缩并优化为高性能的 **Apex Skills（巅峰技能）**。
 
 ---
 
 ## ⚔️ 深度对比
 
-| 维度 | 传统 Agent（如 OpenClaw） | **OpenEvolant** |
+| 维度 | 传统 Agent（如静态 Skills） | **OpenEvolant** |
 | :--- | :--- | :--- |
 | **逻辑本质** | 静态指令 | 进化基因 |
 | **优化方式** | 手动调优 | 自然选择 |
@@ -133,7 +134,7 @@ npm install -g openevolant
 
 OpenEvolant 作为一个「寄生大脑」，负责增强现有的宿主框架。
 
-* **与 OpenClaw**：OpenClaw 提供「肌肉」（任务编排），OpenEvolant 提供「前额叶」（逻辑优化）。
+* **与 Skills**：Skills 提供「肌肉」（任务执行），OpenEvolant 提供「前额叶」（逻辑优化）。
 * **与 MCP**：MCP 提供「工具」（静态资源），OpenEvolant 充当「调度员」（学习最高效的调用方式）。
 
 ---
@@ -172,7 +173,8 @@ node packages/cli/dist/cli.js start
 openevolant
 ```
 启动本地服务，托管 Evolant Studio 静态资源；默认 http://localhost:3000。  
-选项：`--port=4000`、`--data-dir=./data`、`--config-dir=./config`、`--host=0.0.0.0`。  
+**运行时目录**：配置（LLM、evaluator）、数据（genes、会话）、skill 等统一放在一个应用根目录下，默认 `./openevolant`（可用 `--root=<路径>` 覆盖）。开发与打包后运行布局一致：`openevolant/config/`、`openevolant/data/`、`openevolant/skills/`。  
+选项：`--port=4000`、`--root=./openevolant`、`--host=0.0.0.0`。  
 帮助：`openevolant --help`；版本：`openevolant --version`。
 
 ### 4. 开发

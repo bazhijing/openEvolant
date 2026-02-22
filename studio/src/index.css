@@ -1,12 +1,77 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+/* HeroUI 插件（主题与组件样式） */
+@plugin "../hero.mjs";
+
+/* HeroUI：扫描 theme 源码以生成工具类（monorepo 下可为根 node_modules） */
+@source "../../node_modules/@heroui/theme/dist/**/*.{js,ts,jsx,tsx}";
+
+/* 自定义主题 - Tailwind v4 使用 @theme */
+@theme {
+  /* 荧光红 */
+  --color-neon-red: #ff0844;
+  --color-neon-red-bright: #ff3366;
+  --color-neon-red-dim: #cc0636;
+  /* surface */
+  --color-surface: #0a0a0c;
+  --color-surface-elevated: #111113;
+  --color-surface-border: #1f1f23;
+  --color-surface-muted: #18181b;
+  /* 字体 */
+  --font-sans: "Inter", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  /* 阴影 */
+  --shadow-neon-red: 0 0 20px rgba(255, 8, 68, 0.3);
+  --shadow-neon-red-sm: 0 0 10px rgba(255, 8, 68, 0.2);
+  --shadow-glow: 0 0 40px rgba(255, 8, 68, 0.15);
+}
+
+/* 暗色模式 variant（html.dark） */
+@custom-variant dark (&:where(.dark, .dark *));
+
 * {
   box-sizing: border-box;
 }
+
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, sans-serif;
-  background: #0f0f12;
+  font-family: var(--font-sans);
+  background: var(--color-surface);
   color: #e4e4e7;
+  -webkit-font-smoothing: antialiased;
 }
+
 #root {
   min-height: 100vh;
+}
+
+.focus-ring-neon:focus-visible {
+  outline: 2px solid var(--color-neon-red);
+  outline-offset: 2px;
+}
+
+.btn-neon-primary {
+  border-radius: 10px;
+  box-shadow: 0 0 18px rgba(255, 8, 68, 0.4), 0 0 0 1px rgba(255, 8, 68, 0.15);
+}
+.btn-neon-primary:hover {
+  box-shadow: 0 0 26px rgba(255, 8, 68, 0.55), 0 0 0 1px rgba(255, 8, 68, 0.25);
+}
+.btn-neon-outline {
+  border-radius: 10px;
+  border-width: 1.5px;
+}
+.btn-neon-outline:hover {
+  box-shadow: 0 0 14px rgba(255, 8, 68, 0.25);
+}
+.input-neon-wrap {
+  border-radius: 10px;
+}
+.input-neon-wrap:focus-within {
+  box-shadow: 0 0 0 2px rgba(255, 8, 68, 0.3), 0 0 14px rgba(255, 8, 68, 0.12);
+}
+
+.divider-subtle {
+  border-color: rgba(255, 255, 255, 0.06);
 }

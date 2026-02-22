@@ -5,9 +5,15 @@ dist/
 .env.local
 .DS_Store
 
-# data & runtime
+# data & runtime（旧版分散目录，保留兼容）
 data/
 !data/.gitkeep
+
+# 应用根目录（默认 --root=openevolant，其下为 config/、data/、skills/）
+openevolant/
+
+# 应用根目录（打包/运行时 config、data、skills 统一存放于此，默认 ./openevolant）
+openevolant/
 
 # studio build
 studio/dist/

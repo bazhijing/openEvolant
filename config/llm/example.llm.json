@@ -1,0 +1,21 @@
+{
+  "specVersion": "0.1",
+  "id": "default-llm",
+  "name": "默认 LLM 配置",
+  "models": [
+    {
+      "id": "kimi-k2",
+      "provider": "kimi",
+      "model": "k2",
+      "apiKey": "${KIMI_API_KEY}",
+      "baseURL": "https://api.moonshot.cn/v1"
+    },
+    {
+      "id": "openai-gpt4",
+      "provider": "openai",
+      "model": "gpt-4",
+      "apiKey": "${OPENAI_API_KEY}",
+      "baseURL": null
+    }
+  ]
+}

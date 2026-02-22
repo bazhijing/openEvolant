@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 /**
  * openevolant 命令行：一键启动 Web GUI、执行配置等
- * 用法: openevolant [start] [--port=3000] [--data-dir=./data] [--config-dir=./config]
+ * 用法: openevolant [start] [--port=3000] [--root=./openevolant]
+ *       配置、数据、skill 等统一存放在 --root 目录下（默认 ./openevolant）
  *       openevolant --help | --version
  */
 
@@ -32,8 +33,8 @@ function getScriptDir(): string {
 const __dirname = getScriptDir();
 
 const DEFAULT_PORT = 3000;
-const DEFAULT_DATA_DIR = 'data';
-const DEFAULT_CONFIG_DIR = 'config';
+/** 默认应用根目录，其下为 config/、data/、skills/ 等 */
+const DEFAULT_APP_ROOT = 'openevolant';
 
 function resolveWebRoot(): string {
   const envRoot = process.env.OPENEVOLANT_ROOT;
@@ -97,61 +98,163 @@ OpenEvolant v${v} — 自主进化引擎
   help, --help, -h   显示此帮助
   version, --version, -v  显示版本
 
-选项 (start):
+ 选项 (start):
   --port=<端口>      服务端口，默认 ${DEFAULT_PORT}
-  --data-dir=<路径>  数据目录（.genes、会话等），默认 ${DEFAULT_DATA_DIR}
-  --config-dir=<路径> 配置目录（.evaluator 等），默认 ${DEFAULT_CONFIG_DIR}
+  --root=<路径>      应用根目录（其下为 config/、data/、skills/），默认 ${DEFAULT_APP_ROOT}
   --host=<host>      监听地址，默认 0.0.0.0
+  --api-only         仅启动 API（不托管静态资源），用于开发时与 Vite 前端联调
 
 示例:
   openevolant
   openevolant start --port=4000
-  openevolant --data-dir=./my-data
+  openevolant --root=./my-openevolant
 `);
 }
 
 function startServer(opts: {
   port: number;
-  dataDir: string;
+  rootDir: string;
   configDir: string;
+  dataDir: string;
   host: string;
+  apiOnly?: boolean;
 }): void {
   const app = express();
-  const webRoot = resolveWebRoot();
 
-  if (!fs.existsSync(webRoot)) {
-    console.error('错误: 未找到 Web 前端构建产物，请先执行 npm run build');
-    process.exit(1);
+  if (!opts.apiOnly) {
+    const webRoot = resolveWebRoot();
+    if (!fs.existsSync(webRoot)) {
+      console.error('错误: 未找到 Web 前端构建产物，请先执行 npm run build');
+      process.exit(1);
+    }
   }
 
-  app.use(express.static(webRoot, { index: 'index.html' }));
+  app.use(express.json());
+  // 开发联调时允许 Vite 前端 (localhost:5173) 跨域访问
+  if (opts.apiOnly) {
+    app.use((_req, res, next) => {
+      res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+      if (_req.method === 'OPTIONS') return res.sendStatus(204);
+      next();
+    });
+  }
+  if (!opts.apiOnly) {
+    const webRoot = resolveWebRoot();
+    app.use(express.static(webRoot, { index: 'index.html' }));
+  }
+
+  const llmDir = path.join(opts.configDir, 'llm');
+  const defaultLlmPath = path.join(llmDir, 'default.llm.json');
+  const exampleLlmPath = path.join(llmDir, 'example.llm.json');
 
   // 健康检查 / 简单 API 占位
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
       ok: true,
       version: getVersion(),
-      dataDir: opts.dataDir,
+      rootDir: opts.rootDir,
       configDir: opts.configDir,
+      dataDir: opts.dataDir,
     });
+  });
+
+  // GET 当前 LLM 配置（default.llm.json 或 example.llm.json 或空骨架）
+  app.get('/api/config/llm', (_req: Request, res: Response) => {
+    try {
+      let raw: string | undefined;
+      if (fs.existsSync(defaultLlmPath)) {
+        raw = fs.readFileSync(defaultLlmPath, 'utf-8');
+      } else if (fs.existsSync(exampleLlmPath)) {
+        raw = fs.readFileSync(exampleLlmPath, 'utf-8');
+      } else {
+        // 首次运行：尝试从仓库 config/llm 复制示例到应用根目录下
+        const repoExample = path.join(__dirname, '..', '..', 'config', 'llm', 'example.llm.json');
+        if (fs.existsSync(repoExample)) {
+          try {
+            fs.mkdirSync(llmDir, { recursive: true });
+            fs.copyFileSync(repoExample, exampleLlmPath);
+            raw = fs.readFileSync(exampleLlmPath, 'utf-8');
+          } catch {
+            /* ignore, use skeleton */
+          }
+        }
+        if (typeof raw === 'undefined') {
+          const skeleton = {
+            specVersion: '0.1',
+            id: 'default-llm',
+            name: '默认 LLM 配置',
+            models: [],
+          };
+          return res.json(skeleton);
+        }
+      }
+      if (typeof raw === 'undefined') {
+        return res.json({
+          specVersion: '0.1',
+          id: 'default-llm',
+          name: '默认 LLM 配置',
+          models: [],
+        });
+      }
+      const data = JSON.parse(raw);
+      res.json(data);
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  // POST 保存 LLM 配置到 default.llm.json
+  app.post('/api/config/llm', (req: Request, res: Response) => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      if (!body || typeof body !== 'object') {
+        return res.status(400).json({ error: 'Invalid JSON body' });
+      }
+      if (!fs.existsSync(llmDir)) {
+        fs.mkdirSync(llmDir, { recursive: true });
+      }
+      const payload = {
+        specVersion: body.specVersion ?? '0.1',
+        id: body.id ?? 'default-llm',
+        name: body.name ?? '默认 LLM 配置',
+        models: Array.isArray(body.models) ? body.models : [],
+      };
+      fs.writeFileSync(defaultLlmPath, JSON.stringify(payload, null, 2), 'utf-8');
+      res.json(payload);
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
   });
 
   const server = http.createServer(app);
   server.listen(opts.port, opts.host, () => {
-    console.log(`OpenEvolant 已启动`);
-    console.log(`  Web GUI: http://localhost:${opts.port}`);
-    console.log(`  数据目录: ${path.resolve(opts.dataDir)}`);
-    console.log(`  配置目录: ${path.resolve(opts.configDir)}`);
+    console.log(`OpenEvolant 已启动${opts.apiOnly ? ' (仅 API)' : ''}`);
+    if (!opts.apiOnly) {
+      console.log(`  Web GUI: http://localhost:${opts.port}`);
+    } else {
+      console.log(`  API: http://localhost:${opts.port}`);
+    }
+    console.log(`  应用根目录: ${opts.rootDir}`);
+    console.log(`  配置目录: ${opts.configDir}`);
+    console.log(`  数据目录: ${opts.dataDir}`);
   });
 }
 
-function parseArgs(): { command: string; port: number; dataDir: string; configDir: string; host: string } {
+function parseArgs(): {
+  command: string;
+  port: number;
+  root: string;
+  host: string;
+  apiOnly: boolean;
+} {
   const args = process.argv.slice(2);
   let command = 'start';
   let port = DEFAULT_PORT;
-  let dataDir = DEFAULT_DATA_DIR;
-  let configDir = DEFAULT_CONFIG_DIR;
+  let root = DEFAULT_APP_ROOT;
   let host = '0.0.0.0';
+  let apiOnly = false;
 
   for (const arg of args) {
     if (arg === '--help' || arg === '-h' || arg === 'help') {
@@ -164,16 +267,16 @@ function parseArgs(): { command: string; port: number; dataDir: string; configDi
     }
     if (arg === 'start') command = 'start';
     else if (arg.startsWith('--port=')) port = parseInt(arg.slice(7), 10) || DEFAULT_PORT;
-    else if (arg.startsWith('--data-dir=')) dataDir = arg.slice(10).trim() || DEFAULT_DATA_DIR;
-    else if (arg.startsWith('--config-dir=')) configDir = arg.slice(12).trim() || DEFAULT_CONFIG_DIR;
+    else if (arg.startsWith('--root=')) root = arg.slice(7).trim() || DEFAULT_APP_ROOT;
     else if (arg.startsWith('--host=')) host = arg.slice(7).trim() || '0.0.0.0';
+    else if (arg === '--api-only') apiOnly = true;
   }
 
-  return { command, port, dataDir, configDir, host };
+  return { command, port, root, host, apiOnly };
 }
 
 function main(): void {
-  const { command, port, dataDir, configDir, host } = parseArgs();
+  const { command, port, root, host, apiOnly } = parseArgs();
 
   if (command === 'help') {
     printHelp();
@@ -185,7 +288,11 @@ function main(): void {
   }
 
   if (command === 'start') {
-    startServer({ port, dataDir, configDir, host });
+    const cwd = process.cwd();
+    const rootDir = path.resolve(cwd, root);
+    const configDir = path.join(rootDir, 'config');
+    const dataDir = path.join(rootDir, 'data');
+    startServer({ port, rootDir, configDir, dataDir, host, apiOnly });
   } else {
     printHelp();
     process.exit(1);
