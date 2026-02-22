@@ -1,0 +1,28 @@
+{
+  "specVersion": "0.1",
+  "id": "preset-quality-first",
+  "name": "Quality first (quality 为主)",
+  "createdAt": "2025-02-22T00:00:00Z",
+  "updatedAt": "2025-02-22T00:00:00Z",
+  "runConstraints": {
+    "timeLimitSeconds": 3600,
+    "budgetMoney": 10,
+    "maxIterations": 50,
+    "maxConcurrentRuns": null
+  },
+  "interruptConditions": {
+    "stopWhenScoreAbove": 0.95,
+    "stopWhenScoreBelow": null,
+    "stopWhenNoImprovementForIterations": 5,
+    "description": "Stop when quality score ≥ 0.95 or no improvement for 5 rounds"
+  },
+  "evaluatorRefs": [
+    { "evaluatorId": "preset-ai-quality", "key": "ai", "weight": 0.85 },
+    { "evaluatorId": "preset-cost", "key": "cost", "weight": 0.08 },
+    { "evaluatorId": "preset-time", "key": "time", "weight": 0.07 }
+  ],
+  "aggregation": {
+    "method": "weighted_sum",
+    "primaryDimension": "ai"
+  }
+}

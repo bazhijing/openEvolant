@@ -1,0 +1,28 @@
+{
+  "specVersion": "0.1",
+  "id": "preset-balanced",
+  "name": "Balanced (quality · cost · time 平衡)",
+  "createdAt": "2025-02-22T00:00:00Z",
+  "updatedAt": "2025-02-22T00:00:00Z",
+  "runConstraints": {
+    "timeLimitSeconds": 3600,
+    "budgetMoney": 10,
+    "maxIterations": 50,
+    "maxConcurrentRuns": 2
+  },
+  "interruptConditions": {
+    "stopWhenScoreAbove": 0.95,
+    "stopWhenScoreBelow": null,
+    "stopWhenNoImprovementForIterations": 5,
+    "description": "Stop when score ≥ 0.95 or no improvement for 5 rounds"
+  },
+  "evaluatorRefs": [
+    { "evaluatorId": "preset-ai-quality", "key": "ai", "weight": 0.5 },
+    { "evaluatorId": "preset-cost", "key": "cost", "weight": 0.3 },
+    { "evaluatorId": "preset-time", "key": "time", "weight": 0.2 }
+  ],
+  "aggregation": {
+    "method": "weighted_sum",
+    "primaryDimension": null
+  }
+}
