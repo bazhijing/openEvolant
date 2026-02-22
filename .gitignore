@@ -1,0 +1,24 @@
+node_modules/
+dist/
+*.tsbuildinfo
+.env
+.env.local
+.DS_Store
+
+# data & runtime
+data/
+!data/.gitkeep
+
+# studio build
+studio/dist/
+studio/build/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# logs
+*.log
+npm-debug.log*

@@ -1,0 +1,24 @@
+{
+  "name": "openevolant",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OpenEvolant: The Autonomous Evolution Engine",
+  "bin": {
+    "openevolant": "packages/cli/dist/cli.js"
+  },
+  "scripts": {
+    "build": "npm run build:packages && npm run build:studio && npm run build:cli",
+    "build:packages": "npm run build -w @openevolant/shared && npm run build -w @openevolant/genes && npm run build -w @openevolant/evolution && npm run build -w @openevolant/evaluator && npm run build -w @openevolant/gateway && npm run build -w @openevolant/llm && npm run build -w @openevolant/agent-runner && npm run build -w @openevolant/agentic-loop",
+    "build:studio": "npm run build -w studio",
+    "build:cli": "npm run build -w @openevolant/cli",
+    "dev": "npm run dev -w studio",
+    "dev:studio": "npm run dev -w studio",
+    "start": "node packages/cli/dist/cli.js start",
+    "prepublishOnly": "npm run build",
+    "postinstall": "node -e \"const fs=require('fs');if(!fs.existsSync('studio/dist')){console.log('OpenEvolant: 正在构建前端与 CLI...');require('child_process').execSync('npm run build',{stdio:'inherit'});}\"",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true}); ['packages/genes','packages/evolution','packages/evaluator','packages/gateway','packages/agent-runner','packages/agentic-loop','packages/llm','packages/shared','packages/cli','studio'].forEach(p=>{const d=p+'/dist'; try{require('fs').rmSync(d,{recursive:true})}catch(e){}})\""
+  },
+  "workspaces": ["packages/*", "studio"],
+  "engines": { "node": ">=18" },
+  "files": ["packages/cli/dist", "studio/dist", "config"]
+}

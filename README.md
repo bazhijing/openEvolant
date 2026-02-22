@@ -57,6 +57,44 @@ Through the **Evolant Studio**, you can witness digital Darwinism in real-time:
 
 ## 🚀 Getting Started | 快速开始
 
-### 1. Installation | 安装
+### 1. 克隆与安装 | Clone & Install
 ```bash
-npm install -g openevolant
+git clone <repo-url>
+cd openEvolant
+npm install
+```
+
+### 2. 构建 | Build
+```bash
+npm run build
+```
+- 会依次构建 `packages/*`、`studio` 和 CLI（`@openevolant/cli`）。
+
+### 3. 一键启动 Web GUI | Start
+```bash
+npm start
+# 或
+node packages/cli/dist/cli.js start
+# 或（全局安装后）
+openevolant
+```
+- 启动本地服务，托管 Evolant Studio 静态资源；默认 http://localhost:3000。
+- 选项：`--port=4000`、`--data-dir=./data`、`--config-dir=./config`、`--host=0.0.0.0`。
+- 帮助与版本：`node packages/cli/dist/cli.js --help`、`node packages/cli/dist/cli.js --version`。
+- **本地用「命令」测试**：可不做 `npm link`，直接 `npm start`；若想用 `openevolant` 命令，可用 **`npx openevolant`**（在项目根执行，会调当前包）。
+
+### 4. 开发 | Development
+```bash
+npm run dev
+```
+- 启动 Evolant Studio 开发服务器（Vite），在浏览器中打开聊天 / 进化管理 / 设置占位页。
+
+### 5. 全局命令（可选）| Global command (optional)
+- **发布后**：`npm install -g openevolant` 即可使用 `openevolant` 命令。
+- **开发时想用全局命令**：
+  - 推荐：**手动创建符号链接**（不依赖 npm link，避免 EACCES）：
+    ```bash
+    # 将 /path/to/openEvolant 换成你的项目绝对路径（在项目根执行 pwd 可得）
+    sudo ln -sf /path/to/openEvolant/packages/cli/dist/cli.js /usr/local/bin/openevolant
+    ```
+  - 或使用 **`npx openevolant`**（在项目根执行）；或把 npm 全局目录改到用户目录后再 `npm link`。
