@@ -12,11 +12,11 @@
 
 ```
   ┌─ 进化层 (Evolution) ─────────────────────────────────────────────────────────┐
-  │  ┌─────────────┐     ┌──────────────┐     ┌─────────────────┐                 │
-  │  │  Gen Pool   │◄────┤   Evolution  │────►│   Evaluator     │                 │
-  │  │  基因池     │     │   Engine     │     │   评估器        │                 │
-  │  │ (.genes)    │     │  进化引擎    │     │ (.evaluator)    │                 │
-  │  └──────┬──────┘     └──────────────┘     └─────────────────┘                 │
+  │  ┌─────────────┐     ┌──────────────┐     ┌─────────────────────────────┐    │
+  │  │  Gen Pool   │◄────┤   Evolution  │────►│ Natural Selection + Evaluator│    │
+  │  │  基因池     │     │   Engine     │     │ (.ns 条件组合 + .evaluator   │    │
+  │  │ (.genes)    │     │  进化引擎    │     │  单条件评估器)                │    │
+  │  └──────┬──────┘     └──────────────┘     └─────────────────────────────┘    │
   │         │ 当前最优 Gen                                                         │
   └─────────┼─────────────────────────────────────────────────────────────────────┘
             │
@@ -45,8 +45,9 @@
 | 模块 | 说明 |
 |------|------|
 | **Gen Pool（基因池）** | 存储可遗传的 Gens，持久化为 `.genes`；向管线提供「当前最优 Gen」。 |
-| **Evolution Engine（进化引擎）** | 变异、重组、种群管理，读/写 Gen Pool，受 Evaluator 分数驱动。 |
-| **Evaluator（评估器）** | 对 Gen 表现打分（成本、准确率等），策略可持久化为 `.evaluator`，驱动自然选择。 |
+| **Evolution Engine（进化引擎）** | 变异、重组、种群管理，读/写 Gen Pool，受 Natural Selection + Evaluator 分数驱动。 |
+| **Natural Selection（自然选择）** | 条件的组合：运行/中断约束、评估器引用（id+key+weight）、聚合；持久化为 `.ns`。 |
+| **Evaluator（评估器）** | 单条件：一个打分维度及实现（prompt、config），持久化为 `.evaluator`，可被多个 `.ns` 引用。 |
 
 ### 1.3 对话执行管线（Pipeline）
 
@@ -74,10 +75,12 @@
 | 文件类型 | 含义 | 用途 |
 |----------|------|------|
 | **`.genes`** | 基因 / 进化过程 | 记录种群中的基因、变异与重组历史、进化轨迹等，便于追溯、复现与调试；基因池的持久化格式。 |
-| **`.evaluator`** | 评估器 | 记录评估策略、打分规则、筛选条件等，用于驱动自然选择与优胜劣汰；评估器的配置或结果持久化格式。 |
+| **`.ns`** | 自然选择 | 条件的组合：运行/中断约束、评估器引用与权重、聚合方式；驱动进化循环启停与综合分计算。 |
+| **`.evaluator`** | 单条件评估器 | 一个打分维度及实现（kind + config，如 prompt、模型）；可被多个 `.ns` 引用。 |
 
 - **`.genes`** = 进化过程与基因池的载体
-- **`.evaluator`** = 评估逻辑与选择标准的载体
+- **`.ns`** = 条件组合与选择策略的载体
+- **`.evaluator`** = 单条件评估逻辑的载体（可复用）
 
 ---
 
@@ -98,7 +101,7 @@
 | 项目 | 说明 |
 |------|------|
 | **职责** | 存储、检索、版本管理当前种群与历史优良基因。 |
-| **输入** | 来自 Evolution Engine 的新基因、来自 Evaluator 的存活/淘汰结果。 |
+| **输入** | 来自 Evolution Engine 的新基因、来自 Natural Selection + Evaluator 的存活/淘汰结果。 |
 | **输出** | 提供给 Evolution Engine 的父代基因、提供给 Dispatcher 的「当前最优」或指定 Gen。 |
 | **持久化** | 基因池可持久化为 `.genes` 文件（系统原创格式之一）。 |
 
@@ -109,23 +112,32 @@
 | 项目 | 说明 |
 |------|------|
 | **职责** | 实现变异（mutation）、重组（crossover）、种群轮替与进化策略。 |
-| **依赖** | Gen Pool（读父代、写子代），Evaluator（适应度/得分）。 |
+| **依赖** | Gen Pool（读父代、写子代），Natural Selection（.ns）+ Evaluator（.evaluator）（适应度/得分）。 |
 | **策略** | 在模拟压力下（如任务集、成本约束）生成新一代 Gen，淘汰低分个体、保留/组合高分个体。 |
 
 进化引擎是「数字达尔文」的核心：把冗余推理路径压缩为更优序列。
 
-### 2.4 Evaluator / 评估器
+### 2.4 Natural Selection / 自然选择
 
 | 项目 | 说明 |
 |------|------|
-| **职责** | 对 Gen 在给定任务或环境下的表现进行量化（成本、延迟、准确率、成功率等）。 |
-| **输入** | Gen + 任务/环境描述（或与 Skills/MCP 联调时的真实运行轨迹）。 |
-| **输出** | 适应度分数或多维指标，供 Evolution Engine 做选择与排序。 |
-| **持久化** | 评估策略、打分规则等可写入 `.evaluator` 文件（系统原创格式之一）。 |
+| **职责** | 定义条件的组合：用哪些评估器、权重与运行/中断约束、聚合方式；驱动进化循环启停与综合分计算。 |
+| **输入** | 读取 `.ns` 与引用的 `.evaluator`；Evolution Engine 按 `.ns` 调用各评估器并聚合。 |
+| **输出** | 综合适应度与各维度分数，供 Evolution Engine 做选择与排序。 |
+| **持久化** | 自然选择配置持久化为 `.ns` 文件（系统原创格式之一）。 |
+
+### 2.5 Evaluator / 评估器（单条件）
+
+| 项目 | 说明 |
+|------|------|
+| **职责** | 对 Gen 在**一个维度**上的表现进行量化（如成本、延迟、准确率、AI 质量等）；实现方式由 kind + config 定义（prompt、模型等）。 |
+| **输入** | Gen + 任务/环境描述（或运行轨迹）。 |
+| **输出** | 该维度的分数，供 Natural Selection 按权重与聚合合成综合分。 |
+| **持久化** | 单条件评估器持久化为 `.evaluator` 文件（系统原创格式之一）；可被多个 `.ns` 引用。 |
 
 高成本、低准确率的基因被逐步淘汰；优良基因得以保留并参与重组。
 
-### 2.5 Dispatcher / 调度层
+### 2.6 Dispatcher / 调度层
 
 | 项目 | 说明 |
 |------|------|
@@ -135,12 +147,12 @@
 
 Dispatcher 使进化得到的逻辑真正落地到执行层。
 
-### 2.6 Evolant Studio / 进化可视化
+### 2.7 Evolant Studio / 进化可视化
 
 | 项目 | 说明 |
 |------|------|
 | **职责** | GUI 展示进化过程：变异追踪、优胜劣汰、基因沉淀为 `.genes`。 |
-| **数据来源** | 从 Gen Pool、Evolution Engine、Evaluator 拉取状态与历史。 |
+| **数据来源** | 从 Gen Pool、Evolution Engine、Natural Selection（.ns）与 Evaluator（.evaluator）拉取状态与历史。 |
 | **用户价值** | 实时观察「数字达尔文」、调试进化策略、导出/分享 Apex Skills。 |
 
 ---
@@ -158,7 +170,7 @@ Dispatcher 使进化得到的逻辑真正落地到执行层。
 ## 4. 数据流与进化循环 | Data Flow & Evolution Loop
 
 1. **初始化**：从 Gen Pool 加载种子 Gen（或从既有 `.genes` 导入）。
-2. **评估**：Evaluator 在任务集/模拟环境下对当前种群中的 Gen 打分。
+2. **评估**：按 `.ns` 引用的各 `.evaluator` 对当前种群中的 Gen 打分，再按 `.ns` 的权重与聚合得到综合分。
 3. **选择**：Evolution Engine 根据分数进行选择（保留高分、淘汰低分）。
 4. **变异与重组**：对选中 Gen 进行变异与重组，生成子代。
 5. **回写**：子代写入 Gen Pool，持久化为 `.genes`（基因结晶）。
@@ -170,9 +182,10 @@ Dispatcher 使进化得到的逻辑真正落地到执行层。
 ## 5. 模块依赖简图 | Module Dependencies
 
 ```
-Evolant Studio ──► 只读/订阅 ──► Gen Pool, Evolution Engine, Evaluator
+Evolant Studio ──► 只读/订阅 ──► Gen Pool, Evolution Engine, Natural Selection (.ns), Evaluator (.evaluator)
 
-Evaluator ──► 读 Gen Pool（可选） ──► 输出分数 ──► Evolution Engine
+Natural Selection (.ns) ──► 引用 ──► Evaluator (.evaluator)
+Evaluator ──► 读 Gen Pool（可选） ──► 输出各维度分数 ──► Natural Selection 聚合 ──► Evolution Engine
 
 Evolution Engine ──► 读/写 Gen Pool
 
@@ -218,14 +231,15 @@ OpenEvolant 定位为**可自主进化的 Agent 系统**，与 OpenClaw 在「�
 |------|------|
 | **Gen Pool**（`.genes`） | 基因池与进化过程持久化；驱动 System Prompt Builder 与 Dispatcher 的「逻辑」来源。 |
 | **Evolution Engine** | 变异、重组、种群管理，在离线/后台持续进化。 |
-| **Evaluator**（`.evaluator`） | 对 Gen 表现打分，驱动自然选择；策略与规则可持久化。 |
+| **Natural Selection**（`.ns`） | 条件组合与选择策略；运行/中断约束、评估器引用与聚合。 |
+| **Evaluator**（`.evaluator`） | 单条件评估器，对 Gen 在某一维度打分（prompt、config）；可被多个 `.ns` 引用。 |
 | **Dispatcher** | 在 Agentic Loop 中根据 Gen 编排 Skills、调用 MCP，相当于「可进化的工具/技能调度」。 |
 | **Evolant Studio** | 进化过程与结果的可视化、调试与导出。 |
 
 ### 6.4 一句话对应
 
 - **OpenClaw**：静态的 System Prompt + 静态的 Agentic Loop（tools/skills 写死）。
-- **OpenEvolant**：**Gen 驱动的 System Prompt** + **Dispatcher/Gen 驱动的 Agentic Loop**，外加 **Evolution Engine + Evaluator + Gen Pool** 持续优化这两部分，产出 `.genes` 与 `.evaluator`。
+- **OpenEvolant**：**Gen 驱动的 System Prompt** + **Dispatcher/Gen 驱动的 Agentic Loop**，外加 **Evolution Engine + Natural Selection (.ns) + Evaluator (.evaluator) + Gen Pool** 持续优化这两部分，产出 `.genes`、`.ns` 与 `.evaluator`。
 
 因此我们需要实现整条「从用户消息到回复」的管线（与 OpenClaw 对齐），并在 System Prompt 构建与 Agentic Loop 两处接入进化层（Gen Pool + Dispatcher），并实现进化与评估独有模块。
 

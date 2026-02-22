@@ -4,10 +4,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Input,
   Button,
-  Divider,
   Chip,
   Select,
   SelectItem,
+  Textarea,
   Tooltip,
   Modal,
   ModalContent,
@@ -16,153 +16,121 @@ import {
   ModalFooter,
 } from '@heroui/react';
 
-/** 与 .evaluator 规范一致的类型（前端仅用，不调后端） */
-type EvaluatorDimension = {
-  key: string;
-  name: string;
-  weight: number;
-  kind: 'ai' | 'cost' | 'time' | 'accuracy' | 'custom';
-  config: Record<string, unknown>;
-};
+/** 单条件 .evaluator（前端 mock，不调后端） */
+type EvaluatorKind = 'ai' | 'cost' | 'time' | 'accuracy' | 'custom';
 
-type EvaluatorConfig = {
+type SingleEvaluator = {
   specVersion: string;
   id: string;
   name: string;
   createdAt?: string;
   updatedAt?: string;
-  runConstraints: {
-    timeLimitSeconds: number | null;
-    budgetMoney: number | null;
-    maxIterations: number;
-    maxConcurrentRuns: number | null;
-  };
-  interruptConditions: {
-    stopWhenScoreAbove: number | null;
-    stopWhenScoreBelow: number | null;
-    stopWhenNoImprovementForIterations: number | null;
-    description?: string;
-  };
-  dimensions: EvaluatorDimension[];
-  aggregation: { method: 'weighted_sum' | 'min' | 'max'; primaryDimension: string | null };
+  kind: EvaluatorKind;
+  config: Record<string, unknown>;
 };
 
-const defaultRunConstraints: EvaluatorConfig['runConstraints'] = {
-  timeLimitSeconds: 3600,
-  budgetMoney: 10,
-  maxIterations: 50,
-  maxConcurrentRuns: 2,
-};
-
-const defaultInterrupt: EvaluatorConfig['interruptConditions'] = {
-  stopWhenScoreAbove: 0.95,
-  stopWhenScoreBelow: null,
-  stopWhenNoImprovementForIterations: 5,
-  description: '',
-};
-
-const defaultDimension: EvaluatorDimension = {
-  key: 'ai',
-  name: 'AI quality',
-  weight: 0.5,
-  kind: 'ai',
-  config: {},
-};
-
-const emptyConfig = (): EvaluatorConfig => ({
+const emptyEvaluator = (): SingleEvaluator => ({
   specVersion: '0.1',
   id: '',
   name: '',
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
-  runConstraints: { ...defaultRunConstraints },
-  interruptConditions: { ...defaultInterrupt },
-  dimensions: [{ ...defaultDimension }],
-  aggregation: { method: 'weighted_sum', primaryDimension: null },
+  kind: 'ai',
+  config: {},
 });
 
-/** 初始示例数据（仅前端展示，不请求后端） */
-const initialConfigs: EvaluatorConfig[] = [
+const initialEvaluators: SingleEvaluator[] = [
   {
     specVersion: '0.1',
-    id: 'eval-balanced-01',
-    name: '平衡型（省时省钱+质量）',
+    id: 'eval-ai-quality-01',
+    name: 'AI quality (1–5 rubric)',
     createdAt: '2025-02-22T00:00:00Z',
     updatedAt: '2025-02-22T00:00:00Z',
-    runConstraints: {
-      timeLimitSeconds: 3600,
-      budgetMoney: 10,
-      maxIterations: 50,
-      maxConcurrentRuns: 2,
+    kind: 'ai',
+    config: {
+      prompt: 'Rate the response quality from 1 to 5. Consider clarity, relevance, and completeness.',
+      model: 'gpt-4o-mini',
+      temperature: 0,
+      outputFormat: 'number',
+      min: 1,
+      max: 5,
+      normalizeToZeroOne: true,
     },
-    interruptConditions: {
-      stopWhenScoreAbove: 0.95,
-      stopWhenScoreBelow: null,
-      stopWhenNoImprovementForIterations: 5,
-      description: '分数≥0.95 或连续 5 轮无提升则停止',
-    },
-    dimensions: [
-      { key: 'ai', name: 'AI 质量', weight: 0.5, kind: 'ai', config: {} },
-      { key: 'cost', name: '花费', weight: 0.3, kind: 'cost', config: {} },
-      { key: 'time', name: '响应时间', weight: 0.2, kind: 'time', config: {} },
-    ],
-    aggregation: { method: 'weighted_sum', primaryDimension: null },
+  },
+  {
+    specVersion: '0.1',
+    id: 'eval-cost-01',
+    name: 'Cost (token budget)',
+    createdAt: '2025-02-22T00:00:00Z',
+    updatedAt: '2025-02-22T00:00:00Z',
+    kind: 'cost',
+    config: { unit: 'usd', cap: 0.01, invert: true },
+  },
+  {
+    specVersion: '0.1',
+    id: 'eval-latency-01',
+    name: 'Latency',
+    createdAt: '2025-02-22T00:00:00Z',
+    updatedAt: '2025-02-22T00:00:00Z',
+    kind: 'time',
+    config: { unit: 'ms', cap: 2000, invert: true },
   },
 ];
 
-const inputClass = {
-  inputWrapper: [
-    'rounded-xl bg-white/5 border border-white/10 input-neon-wrap',
-    'data-[hover=true]:border-neon-red/40 group-data-[focus=true]:border-neon-red',
-  ].join(' '),
-  input: 'text-zinc-200 placeholder:text-zinc-500',
-  label: 'text-zinc-400 font-normal',
-};
-
-const KIND_KEYS = ['ai', 'cost', 'time', 'accuracy', 'custom'] as const;
-const AGGREGATION_KEYS = ['weighted_sum', 'min', 'max'] as const;
-
-function numOrNull(s: string): number | null {
-  const v = s.trim();
-  if (v === '' || v === '—') return null;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-
-const kindLabelKey: Record<(typeof KIND_KEYS)[number], string> = {
+const KIND_KEYS: EvaluatorKind[] = ['ai', 'cost', 'time', 'accuracy', 'custom'];
+const kindLabelKey: Record<EvaluatorKind, string> = {
   ai: 'evaluator.kindAi',
   cost: 'evaluator.kindCost',
   time: 'evaluator.kindTime',
   accuracy: 'evaluator.kindAccuracy',
   custom: 'evaluator.kindCustom',
 };
-const aggregationLabelKey: Record<(typeof AGGREGATION_KEYS)[number], string> = {
-  weighted_sum: 'evaluator.weightedSum',
-  min: 'evaluator.min',
-  max: 'evaluator.max',
+
+const inputClass = {
+  inputWrapper: [
+    'rounded-xl bg-white/[0.04] border border-white/10',
+    'data-[hover=true]:border-white/20 group-data-[focus=true]:border-neon-red/50 group-data-[focus=true]:shadow-[0_0_0_2px_rgba(255,8,68,0.12)]',
+  ].join(' '),
+  input: 'text-zinc-200 placeholder:text-zinc-500',
+  label: 'text-zinc-400 font-normal text-xs',
 };
+
+function configSummary(config: Record<string, unknown>, kind: EvaluatorKind): string {
+  if (kind === 'ai') {
+    const model = config.model as string | undefined;
+    const min = config.min as number | undefined;
+    const max = config.max as number | undefined;
+    const parts = [model].filter(Boolean);
+    if (min != null && max != null) parts.push(`${min}–${max}`);
+    return parts.join(' · ') || '—';
+  }
+  if (kind === 'cost' || kind === 'time') {
+    const unit = config.unit as string | undefined;
+    const cap = config.cap as number | undefined;
+    return [unit, cap != null ? `cap ${cap}` : null].filter(Boolean).join(' · ') || '—';
+  }
+  return Object.keys(config).length ? JSON.stringify(config).slice(0, 24) + '…' : '—';
+}
 
 export default function Evaluator() {
   const { t } = useTranslation();
-  const [configs, setConfigs] = useState<EvaluatorConfig[]>(initialConfigs);
+  const [list, setList] = useState<SingleEvaluator[]>(initialEvaluators);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [form, setForm] = useState<EvaluatorConfig>(emptyConfig());
+  const [form, setForm] = useState<SingleEvaluator>(emptyEvaluator());
 
   const openAdd = () => {
-    setForm(emptyConfig());
-    setForm((f) => ({
-      ...f,
+    setForm({
+      ...emptyEvaluator(),
       id: `eval-${Date.now()}`,
       name: t('evaluator.newConfigName'),
-      interruptConditions: { ...f.interruptConditions, description: t('evaluator.interruptDescDefault') },
-    }));
+    });
     setIsAddModalOpen(true);
   };
 
-  const openEdit = (c: EvaluatorConfig) => {
-    setForm(JSON.parse(JSON.stringify(c)));
-    setEditingId(c.id);
+  const openEdit = (e: SingleEvaluator) => {
+    setForm(JSON.parse(JSON.stringify(e)));
+    setEditingId(e.id);
   };
 
   const closeModal = () => {
@@ -173,384 +141,204 @@ export default function Evaluator() {
   const saveFromForm = () => {
     const next = { ...form, updatedAt: new Date().toISOString() };
     if (editingId) {
-      setConfigs((prev) => prev.map((c) => (c.id === editingId ? next : c)));
+      setList((prev) => prev.map((x) => (x.id === editingId ? next : x)));
     } else {
       if (!next.createdAt) next.createdAt = new Date().toISOString();
-      setConfigs((prev) => [...prev, next]);
+      setList((prev) => [...prev, next]);
     }
     closeModal();
   };
 
   const remove = (id: string) => {
-    setConfigs((prev) => prev.filter((c) => c.id !== id));
+    setList((prev) => prev.filter((x) => x.id !== id));
     if (editingId === id) closeModal();
   };
 
-  const addDimension = () => {
-    setForm((f) => ({
-      ...f,
-      dimensions: [
-        ...f.dimensions,
-        { key: `dim-${f.dimensions.length}`, name: t('evaluator.newDimensionName'), weight: 0.1, kind: 'custom', config: {} },
-      ],
-    }));
+  const updateConfig = (key: string, value: unknown) => {
+    setForm((f) => ({ ...f, config: { ...f.config, [key]: value } }));
   };
 
-  const updateDimension = (index: number, field: keyof EvaluatorDimension, value: string | number) => {
-    setForm((f) => {
-      const dims = [...f.dimensions];
-      dims[index] = { ...dims[index], [field]: value };
-      return { ...f, dimensions: dims };
-    });
-  };
-
-  const removeDimension = (index: number) => {
-    setForm((f) => ({
-      ...f,
-      dimensions: f.dimensions.filter((_, i) => i !== index),
-    }));
-  };
-
-  const isFormValid = form.id.trim() && form.name.trim() && form.dimensions.length > 0;
+  const isFormValid = form.id.trim() && form.name.trim();
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.2 }}
-      className="max-w-3xl"
+      className="max-w-4xl"
     >
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-xl font-semibold text-white tracking-tight">{t('evaluator.title')}</h1>
-          <p className="text-zinc-500 text-sm mt-0.5">{t('evaluator.subtitle')}</p>
+          <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-neon-red/90 mb-1.5">{t('evaluator.singleCondition')}</p>
+          <h1 className="text-2xl font-semibold text-white tracking-tight">{t('evaluator.title')}</h1>
+          <p className="text-zinc-500 text-sm mt-1 max-w-xl">{t('evaluator.subtitle')}</p>
         </div>
-        <Button
-          size="sm"
-          variant="solid"
-          color="primary"
-          onPress={openAdd}
-          className="btn-neon-primary rounded-xl font-medium"
-        >
+        <Button size="sm" variant="solid" color="primary" onPress={openAdd} className="btn-neon-primary rounded-xl font-medium shrink-0">
           {t('evaluator.addConfig')}
         </Button>
       </div>
 
-      <Divider className="bg-white/10 mb-6" />
-
-      <p className="text-zinc-500 text-xs uppercase tracking-wider mb-3">
-        {t('evaluator.configuredCount', { count: configs.length })}
-      </p>
-
-      {configs.length === 0 ? (
-        <div className="rounded-xl border border-white/10 bg-white/[0.02] py-12 text-center">
-          <p className="text-zinc-500 text-sm">{t('evaluator.noConfig')}</p>
-          <p className="text-zinc-600 text-xs mt-1">{t('evaluator.noConfigHint')}</p>
+      <div className="rounded-2xl border border-white/10 bg-gradient-to-b from-white/[0.02] to-transparent overflow-hidden">
+        <div className="px-5 py-4 border-b border-white/10">
+          <p className="text-xs font-medium uppercase tracking-wider text-zinc-500">{t('evaluator.configuredCount', { count: list.length })}</p>
         </div>
-      ) : (
-        <ul className="space-y-2">
-          <AnimatePresence>
-            {configs.map((c) => (
-              <motion.li
-                key={c.id}
-                layout
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, x: -8 }}
-                transition={{ duration: 0.15 }}
-                className="rounded-xl border border-white/10 bg-white/[0.02] hover:bg-white/[0.04] hover:border-white/15 transition-colors"
-              >
-                <div className="flex items-center gap-4 px-4 py-3 flex-wrap">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-zinc-200 font-medium truncate">{c.name}</p>
-                    <p className="text-zinc-500 text-xs font-mono truncate">{c.id}</p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <Chip size="sm" variant="flat" classNames={{ base: 'rounded-lg bg-neon-red/15 border border-neon-red/30', content: 'text-neon-red text-xs' }}>
-                      {t('evaluator.rounds', { n: c.runConstraints.maxIterations })}
+        {list.length === 0 ? (
+          <div className="py-16 text-center">
+            <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3">
+              <svg className="w-6 h-6 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </div>
+            <p className="text-zinc-400 text-sm">{t('evaluator.noConfig')}</p>
+            <p className="text-zinc-600 text-xs mt-1">{t('evaluator.noConfigHint')}</p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-white/5">
+            <AnimatePresence>
+              {list.map((e, i) => (
+                <motion.li
+                  key={e.id}
+                  layout
+                  initial={{ opacity: 0, y: 4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -8 }}
+                  transition={{ duration: 0.2, delay: i * 0.02 }}
+                  className="group relative"
+                >
+                  <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-neon-red/0 group-hover:bg-neon-red/40 transition-colors rounded-l-2xl" />
+                  <div className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-zinc-100 font-medium truncate">{e.name}</p>
+                      <p className="text-zinc-500 text-xs font-mono truncate mt-0.5">{e.id}</p>
+                      <p className="text-zinc-600 text-xs mt-1 truncate">{configSummary(e.config, e.kind)}</p>
+                    </div>
+                    <Chip size="sm" variant="flat" classNames={{ base: 'rounded-lg bg-white/10 border border-white/10 shrink-0', content: 'text-zinc-400 text-xs' }}>
+                      {t(kindLabelKey[e.kind])}
                     </Chip>
-                    {c.runConstraints.timeLimitSeconds != null && (
-                      <Chip size="sm" variant="flat" classNames={{ base: 'rounded-lg bg-white/10', content: 'text-zinc-400 text-xs' }}>
-                        ≤{c.runConstraints.timeLimitSeconds}s
-                      </Chip>
-                    )}
-                    {c.dimensions.map((d) => (
-                      <Chip key={d.key} size="sm" variant="flat" classNames={{ base: 'rounded-lg bg-white/10', content: 'text-zinc-400 text-xs' }}>
-                        {d.name}
-                      </Chip>
-                    ))}
-                  </div>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      size="sm"
-                      variant="light"
-                      onPress={() => openEdit(c)}
-                      className="rounded-lg text-zinc-400 hover:text-neon-red hover:bg-neon-red/10"
-                    >
-                      {t('evaluator.edit')}
-                    </Button>
-                    <Tooltip content={t('evaluator.delete')} placement="left" delay={300}>
-                      <Button
-                        isIconOnly
-                        size="sm"
-                        variant="light"
-                        onPress={() => remove(c.id)}
-                        className="rounded-lg text-zinc-500 hover:text-neon-red hover:bg-neon-red/10 min-w-8 w-8"
-                        aria-label={t('evaluator.delete')}
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                        </svg>
+                    <div className="flex items-center gap-1 shrink-0">
+                      <Button size="sm" variant="light" onPress={() => openEdit(e)} className="rounded-lg text-zinc-400 hover:text-neon-red hover:bg-neon-red/10">
+                        {t('evaluator.edit')}
                       </Button>
-                    </Tooltip>
+                      <Tooltip content={t('evaluator.delete')} placement="left" delay={300}>
+                        <Button
+                          isIconOnly
+                          size="sm"
+                          variant="light"
+                          onPress={() => remove(e.id)}
+                          className="rounded-lg text-zinc-500 hover:text-neon-red hover:bg-neon-red/10 min-w-8 w-8"
+                          aria-label={t('evaluator.delete')}
+                        >
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                          </svg>
+                        </Button>
+                      </Tooltip>
+                    </div>
                   </div>
-                </div>
-              </motion.li>
-            ))}
-          </AnimatePresence>
-        </ul>
-      )}
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          </ul>
+        )}
+      </div>
 
-      {/* 新建 / 编辑 弹窗 */}
       <Modal
         isOpen={isAddModalOpen || !!editingId}
         onClose={closeModal}
         size="2xl"
         classNames={{
-          base: 'bg-surface-elevated border border-surface-border',
-          header: 'border-b border-surface-border',
-          body: 'py-4',
-          footer: 'border-t border-surface-border',
+          base: 'bg-surface-elevated border border-white/10 shadow-2xl',
+          header: 'border-b border-white/10 pb-4',
+          body: 'py-6',
+          footer: 'border-t border-white/10 pt-4',
         }}
       >
         <ModalContent>
-          <ModalHeader className="text-zinc-200">
-            {editingId ? t('evaluator.modalTitleEdit') : t('evaluator.modalTitleNew')}
-          </ModalHeader>
-          <ModalBody className="space-y-4 max-h-[60vh] overflow-y-auto">
-            <div className="grid grid-cols-2 gap-3">
-              <Input
-                label={t('evaluator.id')}
-                placeholder="eval-balanced-01"
-                value={form.id}
-                onValueChange={(v) => setForm((f) => ({ ...f, id: v }))}
-                size="sm"
-                classNames={inputClass}
-                isReadOnly={!!editingId}
-              />
-              <Input
-                label={t('evaluator.name')}
-                placeholder=""
-                value={form.name}
-                onValueChange={(v) => setForm((f) => ({ ...f, name: v }))}
-                size="sm"
-                classNames={inputClass}
-              />
+          <ModalHeader className="text-zinc-100">{editingId ? t('evaluator.modalTitleEdit') : t('evaluator.modalTitleNew')}</ModalHeader>
+          <ModalBody className="space-y-6 max-h-[65vh] overflow-y-auto">
+            <div className="grid grid-cols-2 gap-4">
+              <Input label={t('evaluator.id')} placeholder="eval-ai-quality-01" value={form.id} onValueChange={(v) => setForm((f) => ({ ...f, id: v }))} size="sm" classNames={inputClass} isReadOnly={!!editingId} />
+              <Input label={t('evaluator.name')} placeholder="" value={form.name} onValueChange={(v) => setForm((f) => ({ ...f, name: v }))} size="sm" classNames={inputClass} />
             </div>
 
-            <p className="text-zinc-500 text-xs uppercase tracking-wider mt-4">{t('evaluator.runConstraints')}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-              <Input
-                type="number"
-                label={t('evaluator.timeLimitSec')}
-                placeholder="3600"
-                value={form.runConstraints.timeLimitSeconds?.toString() ?? ''}
-                onValueChange={(v) => setForm((f) => ({ ...f, runConstraints: { ...f.runConstraints, timeLimitSeconds: numOrNull(v) } }))}
-                size="sm"
-                classNames={inputClass}
-              />
-              <Input
-                type="number"
-                label={t('evaluator.budgetMoney')}
-                placeholder="10"
-                value={form.runConstraints.budgetMoney?.toString() ?? ''}
-                onValueChange={(v) => setForm((f) => ({ ...f, runConstraints: { ...f.runConstraints, budgetMoney: numOrNull(v) } }))}
-                size="sm"
-                classNames={inputClass}
-              />
-              <Input
-                type="number"
-                label={t('evaluator.maxIterations')}
-                value={form.runConstraints.maxIterations.toString()}
-                onValueChange={(v) => setForm((f) => ({ ...f, runConstraints: { ...f.runConstraints, maxIterations: Number(v) || 50 } }))}
-                size="sm"
-                classNames={inputClass}
-              />
-              <Input
-                type="number"
-                label={t('evaluator.maxConcurrent')}
-                placeholder="2"
-                value={form.runConstraints.maxConcurrentRuns?.toString() ?? ''}
-                onValueChange={(v) => setForm((f) => ({ ...f, runConstraints: { ...f.runConstraints, maxConcurrentRuns: numOrNull(v) } }))}
-                size="sm"
-                classNames={inputClass}
-              />
-            </div>
-
-            <p className="text-zinc-500 text-xs uppercase tracking-wider mt-4">{t('evaluator.interruptConditions')}</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <Input
-                type="number"
-                label={t('evaluator.stopWhenScoreAbove')}
-                placeholder="0.95"
-                value={form.interruptConditions.stopWhenScoreAbove?.toString() ?? ''}
-                onValueChange={(v) => setForm((f) => ({
-                  ...f,
-                  interruptConditions: { ...f.interruptConditions, stopWhenScoreAbove: numOrNull(v) },
-                }))}
-                size="sm"
-                classNames={inputClass}
-              />
-              <Input
-                type="number"
-                label={t('evaluator.stopWhenScoreBelow')}
-                placeholder="—"
-                value={form.interruptConditions.stopWhenScoreBelow?.toString() ?? ''}
-                onValueChange={(v) => setForm((f) => ({
-                  ...f,
-                  interruptConditions: { ...f.interruptConditions, stopWhenScoreBelow: numOrNull(v) },
-                }))}
-                size="sm"
-                classNames={inputClass}
-              />
-              <Input
-                type="number"
-                label={t('evaluator.stopWhenNoImprovement')}
-                placeholder="5"
-                value={form.interruptConditions.stopWhenNoImprovementForIterations?.toString() ?? ''}
-                onValueChange={(v) => setForm((f) => ({
-                  ...f,
-                  interruptConditions: { ...f.interruptConditions, stopWhenNoImprovementForIterations: numOrNull(v) },
-                }))}
-                size="sm"
-                classNames={inputClass}
-              />
-            </div>
-            <Input
-              label={t('evaluator.description')}
-              placeholder={t('evaluator.optional')}
-              value={form.interruptConditions.description ?? ''}
-              onValueChange={(v) => setForm((f) => ({
-                ...f,
-                interruptConditions: { ...f.interruptConditions, description: v },
-              }))}
-              size="sm"
-              classNames={inputClass}
-            />
-
-            <p className="text-zinc-500 text-xs uppercase tracking-wider mt-4">{t('evaluator.dimensions')}</p>
-            <div className="space-y-2">
-              {form.dimensions.map((d, i) => (
-                <div key={i} className="flex flex-wrap items-end gap-2 p-2 rounded-lg bg-white/5 border border-white/10">
-                  <Input
-                    aria-label="key"
-                    placeholder="key"
-                    value={d.key}
-                    onValueChange={(v) => updateDimension(i, 'key', v)}
-                    size="sm"
-                    classNames={inputClass}
-                    className="w-24"
-                  />
-                  <Input
-                    aria-label={t('evaluator.name')}
-                    placeholder={t('evaluator.name')}
-                    value={d.name}
-                    onValueChange={(v) => updateDimension(i, 'name', v)}
-                    size="sm"
-                    classNames={inputClass}
-                    className="w-28"
-                  />
-                  <Input
-                    type="number"
-                    aria-label="weight"
-                    placeholder="0.5"
-                    value={d.weight.toString()}
-                    onValueChange={(v) => updateDimension(i, 'weight', Number(v) || 0)}
-                    size="sm"
-                    classNames={inputClass}
-                    className="w-20"
-                  />
-                  <Select
-                    placeholder=""
-                    selectedKeys={[d.kind]}
-                    onSelectionChange={(keys) => {
-                      const k = Array.from(keys)[0] as EvaluatorDimension['kind'];
-                      if (k) updateDimension(i, 'kind', k);
-                    }}
-                    size="sm"
-                    classNames={{
-                      trigger: 'rounded-xl bg-white/5 border border-white/10 min-h-9 w-32',
-                      value: 'text-zinc-200',
-                    }}
-                  >
-                    {KIND_KEYS.map((key) => (
-                      <SelectItem key={key} className="text-zinc-200">
-                        {t(kindLabelKey[key])}
-                      </SelectItem>
-                    ))}
-                  </Select>
-                  {form.dimensions.length > 1 && (
-                    <Button
-                      isIconOnly
-                      size="sm"
-                      variant="light"
-                      onPress={() => removeDimension(i)}
-                      className="rounded-lg text-zinc-500 hover:text-neon-red"
-                      aria-label={t('evaluator.deleteDimension')}
-                    >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                    </Button>
-                  )}
-                </div>
-              ))}
-              <Button size="sm" variant="bordered" color="primary" onPress={addDimension} className="btn-neon-outline rounded-xl border-neon-red/50 text-neon-red">
-                {t('evaluator.addDimension')}
-              </Button>
-            </div>
-
-            <p className="text-zinc-500 text-xs uppercase tracking-wider mt-4">{t('evaluator.aggregation')}</p>
-            <div className="flex flex-wrap gap-2">
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{t('evaluator.kind')}</p>
               <Select
-                placeholder={t('evaluator.aggregationMethod')}
-                selectedKeys={[form.aggregation.method]}
+                selectedKeys={[form.kind]}
                 onSelectionChange={(keys) => {
-                  const m = Array.from(keys)[0] as EvaluatorConfig['aggregation']['method'];
-                  if (m) setForm((f) => ({ ...f, aggregation: { ...f.aggregation, method: m } }));
+                  const k = Array.from(keys)[0] as EvaluatorKind;
+                  if (k) setForm((f) => ({ ...f, kind: k }));
                 }}
                 size="sm"
-                classNames={{
-                  trigger: 'rounded-xl bg-white/5 border border-white/10 min-h-9 w-36',
-                  value: 'text-zinc-200',
-                }}
+                classNames={{ trigger: 'rounded-xl bg-white/5 border border-white/10 min-h-9 w-40', value: 'text-zinc-200' }}
               >
-                {AGGREGATION_KEYS.map((key) => (
+                {KIND_KEYS.map((key) => (
                   <SelectItem key={key} className="text-zinc-200">
-                    {t(aggregationLabelKey[key])}
+                    {t(kindLabelKey[key])}
                   </SelectItem>
                 ))}
               </Select>
-              <Input
-                placeholder={t('evaluator.primaryDimensionKey')}
-                value={form.aggregation.primaryDimension ?? ''}
-                onValueChange={(v) => setForm((f) => ({ ...f, aggregation: { ...f.aggregation, primaryDimension: v.trim() || null } }))}
-                size="sm"
-                classNames={inputClass}
-                className="w-40"
-              />
+            </div>
+
+            <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-4">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{t('evaluator.config')}</p>
+              {form.kind === 'ai' && (
+                <>
+                  <Textarea
+                    label={t('evaluator.prompt')}
+                    placeholder="Rate the response quality from 1 to 5..."
+                    value={(form.config.prompt as string) ?? ''}
+                    onValueChange={(v) => updateConfig('prompt', v)}
+                    minRows={3}
+                    size="sm"
+                    classNames={{
+                      ...inputClass,
+                      input: 'text-zinc-200 placeholder:text-zinc-500 min-h-[72px]',
+                    }}
+                  />
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                    <Input label={t('evaluator.model')} placeholder="gpt-4o-mini" value={(form.config.model as string) ?? ''} onValueChange={(v) => updateConfig('model', v)} size="sm" classNames={inputClass} />
+                    <Input type="number" label={t('evaluator.temperature')} placeholder="0" value={String(form.config.temperature ?? '')} onValueChange={(v) => updateConfig('temperature', v === '' ? undefined : Number(v))} size="sm" classNames={inputClass} />
+                    <Input label={t('evaluator.outputFormat')} placeholder="number" value={(form.config.outputFormat as string) ?? ''} onValueChange={(v) => updateConfig('outputFormat', v)} size="sm" classNames={inputClass} />
+                    <div className="flex items-end gap-2">
+                      <Input type="number" label={t('evaluator.min')} placeholder="1" value={String(form.config.min ?? '')} onValueChange={(v) => updateConfig('min', v === '' ? undefined : Number(v))} size="sm" classNames={inputClass} />
+                      <Input type="number" label={t('evaluator.max')} placeholder="5" value={String(form.config.max ?? '')} onValueChange={(v) => updateConfig('max', v === '' ? undefined : Number(v))} size="sm" classNames={inputClass} />
+                    </div>
+                  </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={Boolean(form.config.normalizeToZeroOne)}
+                      onChange={(e) => updateConfig('normalizeToZeroOne', e.target.checked)}
+                      className="rounded border-white/20 bg-white/5 text-neon-red focus:ring-neon-red/50"
+                    />
+                    <span className="text-sm text-zinc-400">{t('evaluator.normalizeToZeroOne')}</span>
+                  </label>
+                </>
+              )}
+              {(form.kind === 'cost' || form.kind === 'time') && (
+                <div className="grid grid-cols-2 gap-3">
+                  <Input label="Unit" placeholder="usd / ms" value={(form.config.unit as string) ?? ''} onValueChange={(v) => updateConfig('unit', v)} size="sm" classNames={inputClass} />
+                  <Input type="number" label="Cap" placeholder="0.01" value={String(form.config.cap ?? '')} onValueChange={(v) => updateConfig('cap', v === '' ? undefined : Number(v))} size="sm" classNames={inputClass} />
+                  <label className="flex items-center gap-2 cursor-pointer col-span-2">
+                    <input type="checkbox" checked={Boolean(form.config.invert)} onChange={(e) => updateConfig('invert', e.target.checked)} className="rounded border-white/20 bg-white/5 text-neon-red focus:ring-neon-red/50" />
+                    <span className="text-sm text-zinc-400">Invert (higher = worse → normalize to lower score)</span>
+                  </label>
+                </div>
+              )}
+              {form.kind === 'accuracy' && (
+                <Input label="Target metric" placeholder="e.g. exact_match" value={(form.config.targetMetric as string) ?? ''} onValueChange={(v) => updateConfig('targetMetric', v)} size="sm" classNames={inputClass} />
+              )}
+              {form.kind === 'custom' && (
+                <p className="text-zinc-500 text-sm">Custom config: implement in backend. Use JSON or key-value in production.</p>
+              )}
             </div>
           </ModalBody>
           <ModalFooter>
             <Button variant="light" onPress={closeModal} className="text-zinc-400">
               {t('evaluator.cancel')}
             </Button>
-            <Button
-              color="primary"
-              onPress={saveFromForm}
-              isDisabled={!isFormValid}
-              className="btn-neon-primary rounded-xl font-medium"
-            >
+            <Button color="primary" onPress={saveFromForm} isDisabled={!isFormValid} className="btn-neon-primary rounded-xl font-medium">
               {editingId ? t('evaluator.save') : t('evaluator.add')}
             </Button>
           </ModalFooter>

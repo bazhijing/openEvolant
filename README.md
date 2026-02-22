@@ -1,6 +1,8 @@
 # 🧬 OpenEvolant: The Autonomous Evolution Engine
 "Stop coding static agents. Start breeding them."
 
+![Evolant Studio Home — DNA helix landing](docs/image/home.jpg)
+
 [![Discord](https://img.shields.io/badge/Discord-OpenEvolant-5865F2?style=for-the-badge&logo=discord)](https://discord.gg/kueXC3vMKZ)  
 **Join us on Discord:** [https://discord.gg/kueXC3vMKZ](https://discord.gg/kueXC3vMKZ)
 
@@ -46,8 +48,17 @@ OpenEvolant acts as a "Parasitic Brain" that enhances existing host frameworks.
 Through **Evolant Studio**, you can witness digital Darwinism in real-time:
 
 * **Mutation Tracking**: Watch prompt fragments recombine to find the "optimal sequence."
-* **Survival of the Fittest**: See high-cost, low-accuracy genes being phased out by the `Evaluator`.
+* **Survival of the Fittest**: See high-cost, low-accuracy genes being phased out by Natural Selection (`.ns`) and Evaluator (`.evaluator`).
 * **Gene Crystallization**: Witness raw logic settling into lightweight, distributable `.gen` files.
+
+---
+
+## 📸 Screenshots
+
+| **Evolution** | **Genes** |
+| :---: | :---: |
+| ![Evolution dashboard](docs/image/evolution.jpg) | ![Genome browser](docs/image/genes.jpg) |
+| *Evolution dashboard* | *Genome browser* |
 
 ---
 
@@ -75,7 +86,7 @@ node packages/cli/dist/cli.js start
 openevolant
 ```
 Starts the local server hosting Evolant Studio; default: http://localhost:3000.  
-**Runtime directory:** All config (LLM, evaluator), data (genes, sessions), and skills live under a single app root; default `./openevolant` (override with `--root=<path>`). So both dev and packaged runs use the same layout: `openevolant/config/`, `openevolant/data/`, `openevolant/skills/`.  
+**Runtime directory:** All config (LLM, `.ns` natural selection, `.evaluator`), data (genes, sessions), and skills live under a single app root; default `./openevolant` (override with `--root=<path>`). So both dev and packaged runs use the same layout: `openevolant/config/`, `openevolant/data/`, `openevolant/skills/`.  
 Options: `--port=4000`, `--root=./openevolant`, `--host=0.0.0.0`.  
 Help: `openevolant --help`; version: `openevolant --version`.
 
@@ -99,7 +110,8 @@ npm install -g openevolant
 | [ARCHITECTURE](docs/ARCHITECTURE.md) | Architecture and design |
 | [FOLDER_STRUCTURE](docs/FOLDER_STRUCTURE.md) | Project folder structure |
 | [SPEC_genes](docs/SPEC_genes.md) | Genes (Gens) specification |
-| [SPEC_evaluator](docs/SPEC_evaluator.md) | Evaluator specification |
+| [SPEC_ns](docs/SPEC_ns.md) | Natural Selection (`.ns`) specification |
+| [SPEC_evaluator](docs/SPEC_evaluator.md) | Single-condition Evaluator (`.evaluator`) specification |
 | [VERSIONS](docs/VERSIONS.md) | Version notes |
 
 ---
@@ -144,8 +156,17 @@ OpenEvolant 作为一个「寄生大脑」，负责增强现有的宿主框架�
 通过 **Evolant Studio**，你可以实时见证数字达尔文主义：
 
 * **变异追踪**：观察 Prompt 碎片如何重组以寻找「最优序列」。
-* **优胜劣汰**：观察高成本、低准确率的基因如何被 `Evaluator` 淘汰。
+* **优胜劣汰**：观察高成本、低准确率的基因如何被自然选择（`.ns`）与评估器（`.evaluator`）淘汰。
 * **基因沉淀**：见证原始逻辑如何凝结为轻量、可分发的 `.gen` 文件。
+
+---
+
+## 📸 界面预览
+
+| **进化** | **基因组** |
+| :---: | :---: |
+| ![进化看板](docs/image/evolution.jpg) | ![基因组浏览](docs/image/genes.jpg) |
+| *进化看板* | *基因组浏览* |
 
 ---
 
@@ -173,7 +194,7 @@ node packages/cli/dist/cli.js start
 openevolant
 ```
 启动本地服务，托管 Evolant Studio 静态资源；默认 http://localhost:3000。  
-**运行时目录**：配置（LLM、evaluator）、数据（genes、会话）、skill 等统一放在一个应用根目录下，默认 `./openevolant`（可用 `--root=<路径>` 覆盖）。开发与打包后运行布局一致：`openevolant/config/`、`openevolant/data/`、`openevolant/skills/`。  
+**运行时目录**：配置（LLM、`.ns` 自然选择、`.evaluator`）、数据（genes、会话）、skill 等统一放在一个应用根目录下，默认 `./openevolant`（可用 `--root=<路径>` 覆盖）。开发与打包后运行布局一致：`openevolant/config/`、`openevolant/data/`、`openevolant/skills/`。  
 选项：`--port=4000`、`--root=./openevolant`、`--host=0.0.0.0`。  
 帮助：`openevolant --help`；版本：`openevolant --version`。
 
@@ -197,5 +218,6 @@ npm install -g openevolant
 | [ARCHITECTURE](docs/ARCHITECTURE.md) | 架构与设计 |
 | [FOLDER_STRUCTURE](docs/FOLDER_STRUCTURE.md) | 项目目录结构 |
 | [SPEC_genes](docs/SPEC_genes.md) | 基因（Gens）规范 |
-| [SPEC_evaluator](docs/SPEC_evaluator.md) | 评估器（Evaluator）规范 |
+| [SPEC_ns](docs/SPEC_ns.md) | 自然选择（.ns）规范 |
+| [SPEC_evaluator](docs/SPEC_evaluator.md) | 单条件评估器（.evaluator）规范 |
 | [VERSIONS](docs/VERSIONS.md) | 版本说明 |

@@ -1,27 +1,35 @@
 # .evaluator 文件设计 | Evaluator File Specification
 
-本系统原创格式，用于持久化**评估器配置**：定义评估维度、资源约束（时间、金钱、循环次数）与中断条件（如「分数太好则提前结束」）。驱动自然选择与进化循环的启停。
+本系统原创格式，用于持久化**单条件评估器**：定义**一个**打分维度及其实现方式（kind + config，如 prompt、模型、阈值）。不包含权重、运行约束或聚合；这些由引用该评估器的 `.ns`（自然选择）配置定义。同一 `.evaluator` 可被多个 `.ns` 复用。
 
 ---
 
-## 1. 用途与定位
+## 1. 用途与定位（英文）
 
-- **载体**：评估逻辑与选择标准的配置（及可选的结果快照）。
-- **使用方式**：用户在 Web GUI 中「选择对应的评估配置」，并给定时间、金钱、循环次数与评估分中断条件后，开始循环执行 Agent；Evaluator 按本配置对每次结果做多维度评估。
-- **维度**：支持 AI 评估（语义/质量）、金钱（成本）、时间（延迟）等简单多维度，每次迭代产出可写回运行结果或仅用于选择。
+- **Carrier**: One scoring dimension and how it is implemented (one condition).
+- **Contains**: `id`, `name`, `kind` (ai | cost | time | accuracy | custom), `config` (prompt, model, thresholds, etc.). No weights, run constraints, interrupt conditions, or aggregation.
+- **Usage**: Referenced by `.ns` files via `evaluatorId`; Evolution Engine loads the evaluator, runs it to get a per-dimension score, then the Natural Selection config applies weights and aggregation.
+
+---
+
+## 1. 用途与定位（中文）
+
+- **载体**：一个打分维度及其实现方式（一个条件）。
+- **包含**：`id`、`name`、`kind`（ai | cost | time | accuracy | custom）、`config`（prompt、模型、阈值等）。不包含权重、运行约束、中断条件或聚合。
+- **使用方式**：由 `.ns` 文件通过 `evaluatorId` 引用；进化引擎加载该评估器、运行得到该维度分数，再由自然选择配置应用权重与聚合。
 
 ---
 
 ## 2. 格式约定
 
-- **扩展名**：`.evaluator`
-- **推荐序列化**：JSON（便于 TypeScript 与工具链）。
-- **编码**：UTF-8。
-- **版本**：文件内带 `specVersion`，便于兼容。
+- **Extension**: `.evaluator`
+- **Serialization**: JSON (TypeScript-friendly).
+- **Encoding**: UTF-8.
+- **Version**: `specVersion` in file for compatibility.
 
 ---
 
-## 3. 文件结构（草案）
+## 3. 文件结构
 
 ```json
 {
@@ -30,31 +38,8 @@
   "name": "string",
   "createdAt": "ISO8601",
   "updatedAt": "ISO8601",
-  "runConstraints": {
-    "timeLimitSeconds": "number | null",
-    "budgetMoney": "number | null",
-    "maxIterations": "number",
-    "maxConcurrentRuns": "number | null"
-  },
-  "interruptConditions": {
-    "stopWhenScoreAbove": "number | null",
-    "stopWhenScoreBelow": "number | null",
-    "stopWhenNoImprovementForIterations": "number | null",
-    "description": "string"
-  },
-  "dimensions": [
-    {
-      "key": "string",
-      "name": "string",
-      "weight": "number",
-      "kind": "ai | cost | time | accuracy | custom",
-      "config": {}
-    }
-  ],
-  "aggregation": {
-    "method": "weighted_sum | min | max",
-    "primaryDimension": "string | null"
-  }
+  "kind": "ai | cost | time | accuracy | custom",
+  "config": {}
 }
 ```
 
@@ -67,114 +52,66 @@
 | 字段 | 类型 | 说明 |
 |------|------|------|
 | `specVersion` | string | 格式版本，如 `"0.1"`。 |
-| `id` | string | 本配置唯一标识。 |
-| `name` | string | 展示名称（如「省时省钱的平衡型」）。 |
-| `createdAt` / `updatedAt` | string (ISO8601) | 创建与最后更新时间。 |
-| `runConstraints` | object | 单次/总体运行的资源与次数约束。 |
-| `interruptConditions` | object | 进化循环的中断条件（如太好/太差/无进步则停）。 |
-| `dimensions` | array | 评估维度列表（AI、钱、时间等）。 |
-| `aggregation` | object | 多维度如何合成为单一适应度或排序依据。 |
-
-### 4.2 runConstraints
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `timeLimitSeconds` | number \| null | 总运行时间上限（秒），null 表示不限制。 |
-| `budgetMoney` | number \| null | 金钱/成本预算（单位可约定），null 表示不限制。 |
-| `maxIterations` | number | 最大进化迭代次数（循环次数）。 |
-| `maxConcurrentRuns` | number \| null | 可选：同时运行的评估任务数上限。 |
-
-### 4.3 interruptConditions
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `stopWhenScoreAbove` | number \| null | 当综合分 ≥ 该值时提前结束（「太好中断」）。 |
-| `stopWhenScoreBelow` | number \| null | 当综合分 ≤ 该值时提前结束（可选策略）。 |
-| `stopWhenNoImprovementForIterations` | number \| null | 连续 N 轮无提升则结束。 |
-| `description` | string | 可选，人类可读的说明。 |
-
-### 4.4 dimensions[]
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `key` | string | 维度键，如 `"ai"`、`"cost"`、`"time"`。 |
+| `id` | string | 本评估器唯一标识（被 `.ns` 的 evaluatorRefs 引用）。 |
 | `name` | string | 展示名称。 |
-| `weight` | number | 在加权聚合时的权重（≥ 0）。 |
-| `kind` | string | `ai` \| `cost` \| `time` \| `accuracy` \| `custom`，用于选用对应计算方式。 |
-| `config` | object | 维度相关配置（如 AI 评估的 prompt、cost 的单位）。 |
+| `createdAt` / `updatedAt` | string (ISO8601) | 创建与最后更新时间。 |
+| `kind` | string | 计算方式类型。 |
+| `config` | object | 该 kind 下的全部实现参数（见下）。 |
 
-**kind 简要约定**：
+### 4.2 kind 与 config 约定
 
-- **ai**：由 LLM 或规则对输出做质量/语义评估，`config` 可含 prompt、模型、阈值。
-- **cost**：金钱/ token 费用等，`config` 可含单价、上限。
-- **time**：延迟或耗时，`config` 可含单位、上限。
-- **accuracy**：准确率/成功率等，`config` 可含目标、采样方式。
-- **custom**：自定义计算方式，由实现解析 `config`。
-
-### 4.5 aggregation
-
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `method` | string | `weighted_sum` \| `min` \| `max` 等，多维度合成单分的规则。 |
-| `primaryDimension` | string \| null | 若按单维排序时使用的维度 key。 |
+| kind | 说明 | config 常见字段 |
+|------|------|-----------------|
+| **ai** | LLM 或规则对输出做质量/语义评估 | `prompt`, `model`, `temperature`, `outputFormat`, `min`, `max`, `normalizeToZeroOne`, 阈值等。 |
+| **cost** | 金钱/ token 费用等 | 单价、上限、`invert` 等。 |
+| **time** | 延迟或耗时 | 单位、上限、`invert` 等。 |
+| **accuracy** | 准确率/成功率等 | 目标指标、采样方式等。 |
+| **custom** | 自定义计算方式 | 由实现解析。 |
 
 ---
 
 ## 5. 与系统其它部分的关系
 
-- **Evolution Engine**：读取 `runConstraints` 与 `interruptConditions`，决定是否继续迭代、何时结束；将每次运行交给 Evaluator 打分。
-- **Evaluator 实现**：按 `dimensions` 与 `aggregation` 计算各 Gen 的分数，结果可写回 `.genes` 的 `fitness` 或单独结果存储。
-- **Evolant Studio**：提供「选择对应的评估配置」的 UI，加载/保存 `.evaluator`；展示时间、金钱、循环次数与中断条件，并可编辑。
+- **Natural Selection（.ns）**: 通过 `evaluatorRefs[].evaluatorId` 引用本评估器，并指定 key、weight；不包含本文件中的 prompt/config。
+- **Evolution Engine**: 根据 `.ns` 的 evaluatorRefs 加载对应 `.evaluator`，按 kind + config 执行打分，得到各维度分数后由 `.ns` 的 aggregation 合成适应度。
+- **Evolant Studio**: 提供「评估器」列表与编辑 UI（单条件：id、name、kind、config）；「自然选择」UI 管理 `.ns` 与 evaluatorRefs。
 
 ---
 
-## 6. 示例（最小）
+## 6. 示例
 
 ```json
 {
   "specVersion": "0.1",
-  "id": "eval-balanced-01",
-  "name": "平衡型（省时省钱+质量）",
+  "id": "eval-ai-quality-01",
+  "name": "AI quality (1–5 rubric)",
   "createdAt": "2025-02-22T00:00:00Z",
   "updatedAt": "2025-02-22T00:00:00Z",
-  "runConstraints": {
-    "timeLimitSeconds": 3600,
-    "budgetMoney": 10.0,
-    "maxIterations": 50,
-    "maxConcurrentRuns": 2
-  },
-  "interruptConditions": {
-    "stopWhenScoreAbove": 0.95,
-    "stopWhenScoreBelow": null,
-    "stopWhenNoImprovementForIterations": 5,
-    "description": "分数≥0.95 或连续 5 轮无提升则停止"
-  },
-  "dimensions": [
-    {
-      "key": "ai",
-      "name": "AI 质量",
-      "weight": 0.5,
-      "kind": "ai",
-      "config": {}
-    },
-    {
-      "key": "cost",
-      "name": "花费",
-      "weight": 0.3,
-      "kind": "cost",
-      "config": { "invert": true }
-    },
-    {
-      "key": "time",
-      "name": "响应时间",
-      "weight": 0.2,
-      "kind": "time",
-      "config": { "invert": true }
-    }
-  ],
-  "aggregation": {
-    "method": "weighted_sum",
-    "primaryDimension": null
+  "kind": "ai",
+  "config": {
+    "prompt": "Rate the response quality from 1 to 5...",
+    "model": "gpt-4o-mini",
+    "temperature": 0,
+    "outputFormat": "number",
+    "min": 1,
+    "max": 5,
+    "normalizeToZeroOne": true
+  }
+}
+```
+
+```json
+{
+  "specVersion": "0.1",
+  "id": "eval-cost-01",
+  "name": "Cost (token budget)",
+  "createdAt": "2025-02-22T00:00:00Z",
+  "updatedAt": "2025-02-22T00:00:00Z",
+  "kind": "cost",
+  "config": {
+    "unit": "usd",
+    "cap": 0.01,
+    "invert": true
   }
 }
 ```
@@ -183,7 +120,7 @@
 
 ## 7. 可选：评估结果快照
 
-若需将某次运行或某轮迭代的评估结果也持久化在同一格式下，可增加可选字段（或单独 `.evaluator.result.json`）：
+若需将某次运行或某轮迭代的**单维度**评估结果持久化，可单独存储（如 `.evaluator.result.json` 或统一结果文件中的 per-evaluator 条目）：
 
 ```json
 {
@@ -192,13 +129,12 @@
   "iteration": "number",
   "at": "ISO8601",
   "genId": "string",
-  "scoresByDimension": { "ai": 0.8, "cost": 0.2, "time": 0.9 },
-  "aggregateScore": "number"
+  "score": "number"
 }
 ```
 
-是否纳入 `.evaluator` 或单独文件，可由实现决定。
+综合分与多维度汇总由 `.ns` 与进化引擎产出，可与 `.genes` 或单独结果存储对齐。
 
 ---
 
-本文档随实现推进可增删字段；实现时建议在 `packages/evaluator` 中维护 TypeScript 类型与校验逻辑。
+实现时建议在 `packages/evaluator` 中维护 TypeScript 类型与校验逻辑。

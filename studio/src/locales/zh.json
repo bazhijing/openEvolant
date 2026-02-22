@@ -1,26 +1,97 @@
 {
   "nav": {
+    "home": "首页",
     "chat": "聊天",
     "evolution": "进化管理",
     "genes": "基因组",
-    "evaluator": "评估配置",
+    "naturalSelector": "自然选择",
+    "evaluator": "评估器",
     "settings": "设置"
+  },
+  "home": {
+    "tagline": "用基因进化智能体。运行进化、管理基因组，打造更好的 AI。",
+    "enterStudio": "进入工作台",
+    "links": {
+      "github": "GitHub",
+      "docs": "文档",
+      "discord": "Discord"
+    },
+    "cards": {
+      "github": {
+        "title": "GitHub",
+        "description": "克隆仓库、提 Issue、参与贡献。代码与规范均在此仓库。",
+        "example": "git clone https://github.com/OpenEvolant/openEvolant"
+      },
+      "docs": {
+        "title": "文档",
+        "description": "架构说明、目录结构、Genes (.gen)、自然选择 (.ns)、评估器规范。",
+        "example": "README · ARCHITECTURE · SPEC_genes · SPEC_ns"
+      },
+      "discord": {
+        "title": "Discord",
+        "description": "社区、答疑与公告。加入 OpenEvolant 服务器。",
+        "example": "discord.gg/kueXC3vMKZ"
+      }
+    },
+    "quickStart": {
+      "title": "快速开始",
+      "flow": {
+        "title": "从任务到结果",
+        "description": "配置自然选择策略 (.ns) → 运行进化 → 得到进化后的基因组 (Genes) 与分数。",
+        "steps": "自然选择 → 进化 → 基因组"
+      },
+      "example": {
+        "title": "举例",
+        "description": "一个可落地的进化目标：在 1 美金预算内做出一个十分漂亮的单页网页。",
+        "quote": "1 美金写一个十分漂亮的网页"
+      },
+      "docs": {
+        "title": "文档",
+        "description": "架构说明、目录结构、Genes (.gen)、自然选择 (.ns)、评估器规范。",
+        "linkText": "README · ARCHITECTURE · SPEC_genes · SPEC_ns"
+      }
+    }
   },
   "app": {
     "title": "Evolant Studio",
-    "brand": "OpenEvolant"
+    "brand": "OpenEvolant",
+    "discord": "加入我们 Discord"
   },
   "chat": {
     "title": "聊天",
     "subtitle": "发起任务意图、与 Genes Agent 对话、查看会话历史。",
     "placeholder": "占位",
-    "comingSoon": "聊天与 Agent 对话功能即将上线。配置好大模型后即可在此与进化引擎交互。"
+    "comingSoon": "聊天与 Agent 对话功能即将上线。配置好大模型后即可在此与进化引擎交互。",
+    "genesDialogueTitle": "基于 Genes 结果的对话（模拟）",
+    "inputPlaceholder": "输入消息…（演示）",
+    "integrationPlaceholder": "下个版本将支持接入 Telegram、WhatsApp、Discord 等，欢迎大家参与开源项目！"
   },
   "evolution": {
-    "title": "进化管理",
-    "subtitle": "基因池（.genes）、评估配置（.evaluator）、触发/观察进化、统计与可视化。",
-    "placeholder": "占位",
-    "comingSoon": "进化管理面板即将上线。可管理基因池、评估器配置并观察进化过程与统计。"
+    "title": "进化",
+    "subtitle": "启动新的物种进化，管理正在进化中的基因组。",
+    "launchNew": "启动新进化",
+    "manageActive": "进行中的进化",
+    "activeCount": "{{count}} 个进行中",
+    "noActive": "暂无进行中的进化",
+    "noActiveHint": "请在上方启动一次新的物种进化。",
+    "newEvolution": "新物种进化",
+    "speciesName": "物种名称",
+    "speciesNamePlaceholder": "如：推理 Agent v2",
+    "genePool": "基因池",
+    "evaluator": "评估器",
+    "policy": "选择策略",
+    "start": "开始进化",
+    "cancel": "取消",
+    "generation": "代数",
+    "bestScore": "最佳分数",
+    "statusRunning": "运行中",
+    "statusPaused": "已暂停",
+    "pause": "暂停",
+    "resume": "继续",
+    "stop": "停止",
+    "view": "查看详情",
+    "progress": "进度",
+    "demoOnly": "仅前端演示，未接后端。基因池、评估器与策略为模拟选项。"
   },
   "genes": {
     "title": "基因组",
@@ -49,23 +120,23 @@
       "archived": "已归档"
     }
   },
-  "evaluator": {
-    "title": "评估配置",
-    "subtitle": "管理 .evaluator 配置：运行约束、中断条件与评估维度（前端演示，暂不连后端）",
-    "addConfig": "+ 新建配置",
-    "configuredCount": "已配置 · {{count}}",
-    "noConfig": "暂无评估配置",
-    "noConfigHint": "点击「新建配置」添加",
+  "ns": {
+    "title": "自然选择",
+    "subtitle": "条件组合：运行约束、中断规则、评估器引用与权重、聚合方式。每个 .ns 文件对应一种策略。",
+    "addConfig": "+ 新建策略",
+    "configuredCount": "策略 · {{count}}",
+    "noConfig": "暂无自然选择策略",
+    "noConfigHint": "点击「新建策略」添加",
     "rounds": "{{n}} 轮",
     "edit": "编辑",
     "delete": "删除",
-    "modalTitleNew": "新建评估配置",
-    "modalTitleEdit": "编辑评估配置",
+    "modalTitleNew": "新建自然选择策略",
+    "modalTitleEdit": "编辑策略",
     "id": "ID",
     "name": "名称",
     "runConstraints": "运行约束",
     "timeLimitSec": "时间上限(秒)",
-    "budgetMoney": "预算(金钱)",
+    "budgetMoney": "预算",
     "maxIterations": "最大迭代",
     "maxConcurrent": "最大并发",
     "interruptConditions": "中断条件",
@@ -73,27 +144,59 @@
     "stopWhenScoreBelow": "分数≤则停",
     "stopWhenNoImprovement": "连续N轮无提升则停",
     "description": "说明",
-    "dimensions": "评估维度",
-    "addDimension": "+ 添加维度",
+    "evaluatorRefs": "评估器引用",
+    "addRef": "+ 添加引用",
+    "deleteRef": "移除",
     "aggregation": "聚合",
-    "aggregationMethod": "聚合方式",
-    "primaryDimensionKey": "主维度 key（可选）",
+    "aggregationMethod": "方式",
+    "primaryDimensionKey": "主维度 key",
     "cancel": "取消",
     "save": "保存",
     "add": "添加",
-    "newConfigName": "新评估配置",
-    "newDimensionName": "新维度",
+    "newConfigName": "新策略",
+    "optional": "可选",
+    "interruptDescDefault": "分数≥0.95 或连续 5 轮无提升则停止",
+    "evalAiQuality": "AI 质量",
+    "evalCost": "花费",
+    "evalLatency": "延迟",
+    "evalAccuracy": "准确率",
     "weightedSum": "加权和",
     "min": "取最小",
-    "max": "取最大",
+    "max": "取最大"
+  },
+  "evaluator": {
+    "title": "评估器",
+    "subtitle": "单条件评估器：每个配置对应一个维度（kind + prompt/config），由 .ns 策略引用。前端演示，暂不连后端。",
+    "singleCondition": "单条件",
+    "addConfig": "+ 新建评估器",
+    "configuredCount": "评估器 · {{count}}",
+    "noConfig": "暂无评估器",
+    "noConfigHint": "点击「新建评估器」添加",
+    "edit": "编辑",
+    "delete": "删除",
+    "modalTitleNew": "新建评估器",
+    "modalTitleEdit": "编辑评估器",
+    "id": "ID",
+    "name": "名称",
+    "kind": "类型",
+    "config": "配置",
+    "prompt": "Prompt",
+    "model": "模型",
+    "temperature": "Temperature",
+    "outputFormat": "输出格式",
+    "min": "最小值",
+    "max": "最大值",
+    "normalizeToZeroOne": "归一化到 [0,1]",
+    "cancel": "取消",
+    "save": "保存",
+    "add": "添加",
+    "newConfigName": "新评估器",
+    "optional": "可选",
     "kindAi": "AI 质量",
     "kindCost": "花费",
     "kindTime": "时间",
     "kindAccuracy": "准确率",
-    "kindCustom": "自定义",
-    "optional": "可选",
-    "deleteDimension": "删除维度",
-    "interruptDescDefault": "分数≥0.95 或连续 5 轮无提升则停止"
+    "kindCustom": "自定义"
   },
   "settings": {
     "title": "LLM",

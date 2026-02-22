@@ -119,7 +119,7 @@
 | `at` | string (ISO8601) | 发生时间。 |
 | `event` | string | `init` \| `mutation` \| `crossover` \| `selection`。 |
 | `genIds` | string[] | 本事件涉及的 genId。 |
-| `scores` | object | 本轮相关得分摘要（可与 Evaluator 输出对齐）。 |
+| `scores` | object | 本轮相关得分摘要（可与 Natural Selection + Evaluator 输出对齐）。 |
 | `summary` | string | 可选文字摘要，便于人工查看。 |
 
 ---
@@ -127,7 +127,7 @@
 ## 5. 与系统其它部分的关系
 
 - **Evolution Engine**：读取 `population` 与 `history`，执行选择/变异/重组后写回 `population` 并追加 `history`。
-- **Evaluator**：对 `population` 中 Gen 打分，结果可写回各 Gen 的 `fitness` 或仅用于内存中的选择，再由 Evolution Engine 持久化。
+- **Natural Selection（.ns）+ Evaluator（.evaluator）**：按 `.ns` 引用的各 `.evaluator` 对 `population` 中 Gen 打分，结果可写回各 Gen 的 `fitness` 或仅用于内存中的选择，再由 Evolution Engine 持久化。
 - **Dispatcher / Agent Runner**：根据 `currentBestGenId` 取对应 Gen 的 `content`，驱动 Prompt 构建与工具/Skills 编排。
 - **Evolant Studio**：展示/编辑 `population`、`history`，管理 `taskIntent`，导出为 Skill（如生成 SKILL.md 或平台 Skill 包）。
 

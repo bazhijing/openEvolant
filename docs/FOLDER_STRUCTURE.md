@@ -18,7 +18,7 @@ openEvolant/
 ├── packages/             # 核心逻辑（进化层 + 管线 + LLM），均为 TypeScript
 ├── studio/               # Evolant Studio Web GUI，TypeScript 前端
 ├── openevolant/          # 运行时应用根目录（gitignore），默认 --root 指向此处
-│   ├── config/           # 实际使用的配置（llm、evaluator 等）
+│   ├── config/           # 实际使用的配置（llm、.ns、.evaluator 等）
 │   ├── data/             # 基因池、会话、评估结果等
 │   └── skills/           # skill 文件等（预留）
 ├── config/               # 仓库内示例/种子配置（首次运行可复制到 openevolant/config/）
@@ -36,7 +36,8 @@ openEvolant/
 | `VERSIONS.md` | 各版本目标 |
 | `FOLDER_STRUCTURE.md` | 本文件，文件夹结构 |
 | `SPEC_genes.md` | `.genes` 文件格式与结构设计 |
-| `SPEC_evaluator.md` | `.evaluator` 文件格式与结构设计 |
+| `SPEC_ns.md` | `.ns` 自然选择（条件组合）文件格式与结构设计 |
+| `SPEC_evaluator.md` | `.evaluator` 单条件评估器文件格式与结构设计 |
 
 ---
 
@@ -48,7 +49,7 @@ openEvolant/
 |------|----------|------|
 | `packages/genes/` | Gen Pool | 基因池读写、`.genes` 序列化与版本管理 |
 | `packages/evolution/` | Evolution Engine | 变异、重组、种群轮替 |
-| `packages/evaluator/` | Evaluator | 评估逻辑、`.evaluator` 配置、多维度打分（AI 评估、金钱、时间等） |
+| `packages/evaluator/` | Evaluator + Natural Selection | `.ns` 条件组合与 `.evaluator` 单条件评估、多维度打分（AI、成本、时间等） |
 | `packages/gateway/` | Gateway Server | 会话路由、Lane Queue，v0.1 仅 Web 单通道 |
 | `packages/agent-runner/` | Agent Runner | Gen 驱动 Prompt 构建、Session History、Memory、Context Window Guard；执行 tools/skills |
 | `packages/agentic-loop/` | Agentic Loop + Dispatcher | 是否 tool call、编排 Skills、调用 MCP |
@@ -82,7 +83,7 @@ Evolant Studio：v0.1 唯一入口，**TypeScript** Web GUI。构建产物（如
 |------|------|
 | `openevolant/config/` | 实际使用的配置目录 |
 | `openevolant/config/llm/` | LLM 配置（.llm.json），详见 [SPEC_llm.md](./SPEC_llm.md) |
-| `openevolant/config/evaluator/` | 评估配置（.evaluator 等） |
+| `openevolant/config/evaluator/` | 评估配置（.evaluator 单条件） |
 | `openevolant/data/` | 运行时数据 |
 | `openevolant/data/genes/` | `.genes` 文件或基因池存储 |
 | `openevolant/data/sessions/` | 各 session 的对话历史与 memory |
@@ -99,7 +100,8 @@ Evolant Studio：v0.1 唯一入口，**TypeScript** Web GUI。构建产物（如
 
 | 路径 | 说明 |
 |------|------|
-| `config/evaluator/` | 示例 `.evaluator` 配置 |
+| `config/evaluator/` | 示例 `.evaluator` 单条件配置 |
+| `config/ns/` | 示例 `.ns` 自然选择配置（可选） |
 | `config/llm/` | 示例 `.llm` 配置（首次运行可被复制到 openevolant/config/llm/） |
 
 ---
@@ -107,7 +109,7 @@ Evolant Studio：v0.1 唯一入口，**TypeScript** Web GUI。构建产物（如
 ## 与 v0.1 的对应关系
 
 - **聊天**：`studio` 聊天页 → `packages/gateway` → `packages/agent-runner` → `packages/llm` → `packages/agentic-loop`，会话与历史落 `openevolant/data/sessions/`。
-- **进化管理**：`studio` 进化管理页 读/写 `packages/genes`、`packages/evaluator`，触发 `packages/evolution`，展示 `.genes` 与统计；评估配置来自 `openevolant/config/evaluator/` 或用户保存的 `.evaluator`。
+- **进化管理**：`studio` 进化管理页 读/写 `packages/genes`、`packages/evaluator`，触发 `packages/evolution`，展示 `.genes` 与统计；自然选择来自 `.ns`，单条件评估来自 `openevolant/config/evaluator/` 或用户保存的 `.evaluator`。
 - **任务意图 → skill / .genes**：在 `studio` 创建任务意图，对应新 skill 或已有 skill，进化过程写 `openevolant/data/genes/`，迭代信息写入 `.genes`。
 
 随实现可增删子目录，本文档随仓库实际结构更新。

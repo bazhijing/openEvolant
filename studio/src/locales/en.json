@@ -1,26 +1,97 @@
 {
   "nav": {
+    "home": "Home",
     "chat": "Chat",
     "evolution": "Evolution",
     "genes": "Genes",
+    "naturalSelector": "Natural Selection",
     "evaluator": "Evaluator",
     "settings": "Settings"
   },
+  "home": {
+    "tagline": "Evolve agents with genes. Run evolution, manage genomes, and ship better AI.",
+    "enterStudio": "Enter Studio",
+    "links": {
+      "github": "GitHub",
+      "docs": "Documentation",
+      "discord": "Discord"
+    },
+    "cards": {
+      "github": {
+        "title": "GitHub",
+        "description": "Clone the repo, open issues, and contribute. All code and specs live here.",
+        "example": "git clone https://github.com/OpenEvolant/openEvolant"
+      },
+      "docs": {
+        "title": "Documentation",
+        "description": "Architecture, folder structure, Genes (.gen), Natural Selection (.ns), and Evaluator specs.",
+        "example": "README · ARCHITECTURE · SPEC_genes · SPEC_ns"
+      },
+      "discord": {
+        "title": "Discord",
+        "description": "Community, support, and announcements. Join the OpenEvolant server.",
+        "example": "discord.gg/kueXC3vMKZ"
+      }
+    },
+    "quickStart": {
+      "title": "Quick Start",
+      "flow": {
+        "title": "From task to result",
+        "description": "Configure a Natural Selection policy (.ns) → run Evolution → get evolved genomes (Genes) and scores.",
+        "steps": "Natural Selection → Evolution → Genes"
+      },
+      "example": {
+        "title": "Example",
+        "description": "A concrete goal you can evolve against: build a single, beautiful webpage under a $1 budget.",
+        "quote": "Write a stunning webpage for $1"
+      },
+      "docs": {
+        "title": "Documentation",
+        "description": "Architecture, folder structure, Genes (.gen), Natural Selection (.ns), and Evaluator specs.",
+        "linkText": "README · ARCHITECTURE · SPEC_genes · SPEC_ns"
+      }
+    }
+  },
   "app": {
     "title": "Evolant Studio",
-    "brand": "OpenEvolant"
+    "brand": "OpenEvolant",
+    "discord": "Join our Discord"
   },
   "chat": {
     "title": "Chat",
     "subtitle": "Start task intents, talk to Genes Agent, view session history.",
     "placeholder": "Placeholder",
-    "comingSoon": "Chat and Agent conversation coming soon. Configure LLM in Settings to interact with the evolution engine."
+    "comingSoon": "Chat and Agent conversation coming soon. Configure LLM in Settings to interact with the evolution engine.",
+    "genesDialogueTitle": "Genes-based dialogue (simulation)",
+    "inputPlaceholder": "Type a message… (demo)",
+    "integrationPlaceholder": "Next version will support Telegram, WhatsApp, Discord and more. Welcome to contribute to the open source project!"
   },
   "evolution": {
     "title": "Evolution",
-    "subtitle": "Gene pool (.genes), evaluator config (.evaluator), trigger/observe evolution, stats and visualization.",
-    "placeholder": "Placeholder",
-    "comingSoon": "Evolution panel coming soon. Manage gene pool, evaluator config, and observe evolution process and stats."
+    "subtitle": "Launch new species evolution and manage active evolving genomes.",
+    "launchNew": "Launch new evolution",
+    "manageActive": "Active evolutions",
+    "activeCount": "{{count}} active",
+    "noActive": "No active evolutions",
+    "noActiveHint": "Start a new species evolution above.",
+    "newEvolution": "New species evolution",
+    "speciesName": "Species name",
+    "speciesNamePlaceholder": "e.g. Agent Reasoning v2",
+    "genePool": "Gene pool",
+    "evaluator": "Evaluator",
+    "policy": "Selection policy",
+    "start": "Start evolution",
+    "cancel": "Cancel",
+    "generation": "Gen",
+    "bestScore": "Best score",
+    "statusRunning": "Running",
+    "statusPaused": "Paused",
+    "pause": "Pause",
+    "resume": "Resume",
+    "stop": "Stop",
+    "view": "View details",
+    "progress": "Progress",
+    "demoOnly": "Demo only — no backend. Gene pool, evaluator and policy are mock options."
   },
   "genes": {
     "title": "Genes",
@@ -49,23 +120,23 @@
       "archived": "Archived"
     }
   },
-  "evaluator": {
-    "title": "Evaluator",
-    "subtitle": "Manage .evaluator config: run constraints, interrupt conditions, dimensions (demo only, no backend).",
-    "addConfig": "+ New config",
-    "configuredCount": "Configured · {{count}}",
-    "noConfig": "No evaluator config",
-    "noConfigHint": "Click \"New config\" to add",
+  "ns": {
+    "title": "Natural Selection",
+    "subtitle": "Condition combination: run constraints, interrupt rules, evaluator refs and weights, aggregation. One .ns file per policy.",
+    "addConfig": "+ New policy",
+    "configuredCount": "Policies · {{count}}",
+    "noConfig": "No natural selection policy",
+    "noConfigHint": "Click \"New policy\" to add",
     "rounds": "{{n}} rounds",
     "edit": "Edit",
     "delete": "Delete",
-    "modalTitleNew": "New evaluator config",
-    "modalTitleEdit": "Edit evaluator config",
+    "modalTitleNew": "New natural selection policy",
+    "modalTitleEdit": "Edit policy",
     "id": "ID",
     "name": "Name",
     "runConstraints": "Run constraints",
     "timeLimitSec": "Time limit (s)",
-    "budgetMoney": "Budget (money)",
+    "budgetMoney": "Budget",
     "maxIterations": "Max iterations",
     "maxConcurrent": "Max concurrent",
     "interruptConditions": "Interrupt conditions",
@@ -73,27 +144,59 @@
     "stopWhenScoreBelow": "Stop when score ≤",
     "stopWhenNoImprovement": "Stop after N rounds no improvement",
     "description": "Description",
-    "dimensions": "Dimensions",
-    "addDimension": "+ Add dimension",
+    "evaluatorRefs": "Evaluator refs",
+    "addRef": "+ Add evaluator ref",
+    "deleteRef": "Remove ref",
     "aggregation": "Aggregation",
     "aggregationMethod": "Method",
-    "primaryDimensionKey": "Primary dimension key (optional)",
+    "primaryDimensionKey": "Primary dimension key",
     "cancel": "Cancel",
     "save": "Save",
     "add": "Add",
-    "newConfigName": "New evaluator config",
-    "newDimensionName": "New dimension",
+    "newConfigName": "New policy",
+    "optional": "Optional",
+    "interruptDescDefault": "Stop when score ≥ 0.95 or no improvement for 5 rounds",
+    "evalAiQuality": "AI quality",
+    "evalCost": "Cost",
+    "evalLatency": "Latency",
+    "evalAccuracy": "Accuracy",
     "weightedSum": "Weighted sum",
     "min": "Min",
+    "max": "Max"
+  },
+  "evaluator": {
+    "title": "Evaluator",
+    "subtitle": "Single-condition evaluators: one dimension per config (kind + prompt/config). Referenced by .ns policies. Demo only, no backend.",
+    "singleCondition": "Single condition",
+    "addConfig": "+ New evaluator",
+    "configuredCount": "Evaluators · {{count}}",
+    "noConfig": "No evaluator",
+    "noConfigHint": "Click \"New evaluator\" to add",
+    "edit": "Edit",
+    "delete": "Delete",
+    "modalTitleNew": "New evaluator",
+    "modalTitleEdit": "Edit evaluator",
+    "id": "ID",
+    "name": "Name",
+    "kind": "Kind",
+    "config": "Config",
+    "prompt": "Prompt",
+    "model": "Model",
+    "temperature": "Temperature",
+    "outputFormat": "Output format",
+    "min": "Min",
     "max": "Max",
+    "normalizeToZeroOne": "Normalize to [0,1]",
+    "cancel": "Cancel",
+    "save": "Save",
+    "add": "Add",
+    "newConfigName": "New evaluator",
+    "optional": "Optional",
     "kindAi": "AI quality",
     "kindCost": "Cost",
     "kindTime": "Time",
     "kindAccuracy": "Accuracy",
-    "kindCustom": "Custom",
-    "optional": "Optional",
-    "deleteDimension": "Delete dimension",
-    "interruptDescDefault": "Stop when score ≥ 0.95 or no improvement for 5 rounds"
+    "kindCustom": "Custom"
   },
   "settings": {
     "title": "LLM",
