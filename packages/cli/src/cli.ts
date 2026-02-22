@@ -305,6 +305,60 @@ function startServer(opts: {
     }
   });
 
+  /** 将 id 转为安全文件名（仅保留字母数字、连字符、下划线） */
+  function evaluatorIdToFilename(evaluatorId: string): string {
+    return `${evaluatorId.replace(/[^a-zA-Z0-9_-]/g, '-')}.evaluator`;
+  }
+
+  // POST 创建或更新用户 .evaluator 文件（写入 config/evaluator/<id>.evaluator）
+  app.post('/api/config/evaluators', (req: Request, res: Response) => {
+    try {
+      const body = req.body as Record<string, unknown>;
+      if (!body || typeof body !== 'object') {
+        return res.status(400).json({ error: 'Invalid JSON body' });
+      }
+      const id = typeof body.id === 'string' ? body.id.trim() : '';
+      if (!id) {
+        return res.status(400).json({ error: 'id is required' });
+      }
+      ensureUserEvaluatorDirWithExample(userEvaluatorDir);
+      const payload = {
+        specVersion: body.specVersion ?? '0.1',
+        id,
+        name: typeof body.name === 'string' ? body.name : 'Unnamed',
+        createdAt: typeof body.createdAt === 'string' ? body.createdAt : new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        kind: body.kind ?? 'ai',
+        config: body.config && typeof body.config === 'object' ? body.config : {},
+      };
+      const filename = evaluatorIdToFilename(id);
+      const filePath = path.join(userEvaluatorDir, filename);
+      fs.writeFileSync(filePath, JSON.stringify(payload, null, 2), 'utf-8');
+      res.json({ evaluator: { ...payload, source: 'user' }, savedPath: filePath });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  // DELETE 删除用户 .evaluator 文件（仅限用户目录，不可删预设）
+  app.delete('/api/config/evaluators/:id', (req: Request, res: Response) => {
+    try {
+      const id = (req.params.id ?? '').trim();
+      if (!id) {
+        return res.status(400).json({ error: 'id is required' });
+      }
+      const filename = evaluatorIdToFilename(id);
+      const filePath = path.join(userEvaluatorDir, filename);
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'Evaluator not found' });
+      }
+      fs.unlinkSync(filePath);
+      res.status(204).send();
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
   // POST 保存 LLM 配置到 default.llm.json（至少保留一个模型）
   app.post('/api/config/llm', (req: Request, res: Response) => {
     try {

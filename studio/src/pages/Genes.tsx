@@ -94,6 +94,7 @@ export default function Genes() {
       animate={{ opacity: 1 }}
       className="max-w-5xl"
     >
+      <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-neon-red/90 mb-1.5">{t('GENES')}</p>
       <h1 className="text-2xl font-semibold text-white tracking-tight mb-1">
         {t('genes.title')}
       </h1>

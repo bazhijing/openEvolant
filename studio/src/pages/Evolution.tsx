@@ -167,10 +167,11 @@ export default function Evolution() {
         className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl opacity-[0.03]"
         aria-hidden
       >
+      
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-neon-red rounded-full blur-3xl" />
         <div className="absolute bottom-0 right-1/4 w-80 h-80 bg-neon-red rounded-full blur-3xl" />
       </div>
-
+      <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-neon-red/90 mb-1.5">{t('evol')}</p>
       <h1 className="text-2xl font-semibold text-white tracking-tight mb-1 relative">{t('evolution.title')}</h1>
       <p className="text-zinc-400 text-sm mb-8 relative">{t('evolution.subtitle')}</p>
 

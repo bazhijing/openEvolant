@@ -66,7 +66,6 @@ function normalizeEvaluatorFromApi(spec: Record<string, unknown>): SingleEvaluat
   };
 }
 
-const KIND_KEYS: EvaluatorKind[] = ['ai', 'aiwebsite', 'cost', 'time', 'accuracy', 'custom', 'composite'];
 /** 新建/编辑弹窗内仅支持的两类 */
 const KIND_KEYS_CREATE: EvaluatorKind[] = ['ai', 'aiwebsite'];
 const kindLabelKey: Record<EvaluatorKind, string> = {
@@ -98,6 +97,10 @@ export default function Evaluator() {
   const [form, setForm] = useState<SingleEvaluator>(emptyEvaluator());
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
+  /** 已配置的 LLM 模型列表（来自 Settings /api/config/llm），用于新建时选模型 */
+  const [llmModels, setLlmModels] = useState<LLMModelItem[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const totalItems = list.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
@@ -109,22 +112,39 @@ export default function Evaluator() {
     if (totalPages > 0 && page > totalPages) setPage(totalPages);
   }, [totalPages, page]);
 
-  useEffect(() => {
-    let cancelled = false;
+  const loadEvaluators = () => {
     setLoading(true);
     setLoadError(null);
-    fetch(`${API_BASE}/api/config/evaluators`)
+    return fetch(`${API_BASE}/api/config/evaluators`)
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(res.statusText))))
       .then((data: { evaluators?: Record<string, unknown>[] }) => {
-        if (cancelled) return;
         const raw = Array.isArray(data.evaluators) ? data.evaluators : [];
         setList(raw.map(normalizeEvaluatorFromApi));
       })
-      .catch((e) => {
-        if (!cancelled) setLoadError(e?.message ?? 'Failed to fetch');
+      .catch((e) => setLoadError(e?.message ?? 'Failed to fetch'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadEvaluators();
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch(`${API_BASE}/api/config/llm`)
+      .then((res) => (res.ok ? res.text() : Promise.reject(new Error(res.statusText))))
+      .then((text) => {
+        if (cancelled || !text.trim() || text.trimStart().startsWith('<')) return;
+        try {
+          const data = JSON.parse(text) as { models?: Array<{ id: string; provider: string; model: string }> };
+          const models = Array.isArray(data.models) ? data.models : [];
+          setLlmModels(models.map((m) => ({ id: m.id, provider: m.provider ?? '', model: m.model ?? '' })));
+        } catch {
+          setLlmModels([]);
+        }
       })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
+      .catch(() => {
+        if (!cancelled) setLlmModels([]);
       });
     return () => {
       cancelled = true;
@@ -136,41 +156,91 @@ export default function Evaluator() {
       ...emptyEvaluator(),
       id: `eval-${Date.now()}`,
       name: t('evaluator.newConfigName'),
+      source: 'user',
     });
+    setSaveError(null);
     setIsAddModalOpen(true);
   };
 
   const openEdit = (e: SingleEvaluator) => {
     setForm(JSON.parse(JSON.stringify(e)));
     setEditingId(e.id);
+    setSaveError(null);
   };
 
   const closeModal = () => {
     setIsAddModalOpen(false);
     setEditingId(null);
+    setSaveError(null);
   };
 
   const saveFromForm = () => {
-    const next = { ...form, updatedAt: new Date().toISOString() };
-    if (editingId) {
-      setList((prev) => prev.map((x) => (x.id === editingId ? next : x)));
-    } else {
-      if (!next.createdAt) next.createdAt = new Date().toISOString();
-      setList((prev) => [...prev, next]);
+    let next = { ...form, updatedAt: new Date().toISOString() };
+    if (next.kind === 'ai' || next.kind === 'aiwebsite') {
+      let modelName = (next.config.model as string) ?? '';
+      const byId = llmModels.find((m) => m.id === modelName);
+      if (byId) modelName = byId.model;
+      next = {
+        ...next,
+        config: {
+          ...next.config,
+          prompt: next.config.prompt,
+          model: modelName,
+          temperature: 0,
+          outputFormat: 'number',
+          min: 1,
+          max: 5,
+          normalizeToZeroOne: true,
+        },
+      };
     }
-    closeModal();
+    const payload = {
+      specVersion: next.specVersion,
+      id: next.id,
+      name: next.name,
+      createdAt: next.createdAt ?? new Date().toISOString(),
+      updatedAt: next.updatedAt,
+      kind: next.kind,
+      config: next.config,
+    };
+    setSaving(true);
+    setSaveError(null);
+    fetch(`${API_BASE}/api/config/evaluators`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+      .then((res) => {
+        if (!res.ok) return res.json().then((d) => Promise.reject(new Error((d && d.error) || res.statusText)));
+        return res.json();
+      })
+      .then(() => {
+        closeModal();
+        return loadEvaluators();
+      })
+      .catch((e) => setSaveError(e?.message ?? 'Failed to save'))
+      .finally(() => setSaving(false));
   };
 
-  const remove = (id: string) => {
-    setList((prev) => prev.filter((x) => x.id !== id));
-    if (editingId === id) closeModal();
+  const remove = (item: SingleEvaluator) => {
+    if (item.source !== 'user') return;
+    if (editingId === item.id) closeModal();
+    fetch(`${API_BASE}/api/config/evaluators/${encodeURIComponent(item.id)}`, { method: 'DELETE' })
+      .then((res) => {
+        if (!res.ok) return res.json().then((d) => Promise.reject(new Error((d && d.error) || res.statusText)));
+        return loadEvaluators();
+      })
+      .catch((e) => setLoadError(e?.message ?? 'Failed to delete'));
   };
 
   const updateConfig = (key: string, value: unknown) => {
     setForm((f) => ({ ...f, config: { ...f.config, [key]: value } }));
   };
 
-  const isFormValid = form.id.trim() && form.name.trim();
+  const isFormValid =
+    form.id.trim() &&
+    form.name.trim() &&
+    ((form.kind !== 'ai' && form.kind !== 'aiwebsite') || !!((form.config.model as string) ?? '').trim());
 
   const goPrev = () => setPage((p) => Math.max(1, p - 1));
   const goNext = () => setPage((p) => Math.min(totalPages, p + 1));
@@ -308,7 +378,7 @@ export default function Evaluator() {
                               isIconOnly
                               size="sm"
                               variant="light"
-                              onPress={() => remove(e.id)}
+                              onPress={() => remove(e)}
                               className="rounded-lg text-zinc-500 hover:text-neon-red hover:bg-neon-red/10 min-w-7 w-7"
                               aria-label={t('evaluator.delete')}
                             >
@@ -368,22 +438,18 @@ export default function Evaluator() {
             </div>
 
             <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-3">
-              <p className="text-[11px] font-medium uppercase tracking-wider text-zinc-500">{t('evaluator.kind')}</p>
-              <Select
-                selectedKeys={[form.kind]}
-                onSelectionChange={(keys) => {
-                  const k = Array.from(keys)[0] as EvaluatorKind;
-                  if (k) setForm((f) => ({ ...f, kind: k }));
-                }}
-                size="sm"
-                classNames={{ trigger: 'rounded-xl bg-white/5 border border-white/10 min-h-9 w-40', value: 'text-zinc-200' }}
+              <label className="block text-[11px] font-medium uppercase tracking-wider text-zinc-500 mb-2">{t('evaluator.kind')}</label>
+              <select
+                value={form.kind}
+                onChange={(e) => setForm((f) => ({ ...f, kind: e.target.value as EvaluatorKind }))}
+                className="w-full min-h-9 rounded-xl bg-white/5 border border-white/10 text-zinc-200 text-sm px-3 focus:outline-none focus:border-neon-red/50 focus:ring-1 focus:ring-neon-red/30"
               >
-                {KIND_KEYS.map((key) => (
-                  <SelectItem key={key} className="text-zinc-200">
+                {KIND_KEYS_CREATE.map((key) => (
+                  <option key={key} value={key} className="bg-zinc-900 text-zinc-200">
                     {t(kindLabelKey[key])}
-                  </SelectItem>
+                  </option>
                 ))}
-              </Select>
+              </select>
             </div>
 
             <div className="rounded-xl border border-white/10 bg-white/[0.02] p-4 space-y-4">
@@ -402,50 +468,50 @@ export default function Evaluator() {
                       input: 'text-zinc-200 placeholder:text-zinc-500 min-h-[72px]',
                     }}
                   />
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <Input label={t('evaluator.model')} placeholder="gpt-4o-mini" value={(form.config.model as string) ?? ''} onValueChange={(v) => updateConfig('model', v)} size="sm" classNames={inputClass} />
-                    <Input type="number" label={t('evaluator.temperature')} placeholder="0" value={String(form.config.temperature ?? '')} onValueChange={(v) => updateConfig('temperature', v === '' ? undefined : Number(v))} size="sm" classNames={inputClass} />
-                    <Input label={t('evaluator.outputFormat')} placeholder="number" value={(form.config.outputFormat as string) ?? ''} onValueChange={(v) => updateConfig('outputFormat', v)} size="sm" classNames={inputClass} />
-                    <div className="flex items-end gap-2">
-                      <Input type="number" label={t('evaluator.min')} placeholder="1" value={String(form.config.min ?? '')} onValueChange={(v) => updateConfig('min', v === '' ? undefined : Number(v))} size="sm" classNames={inputClass} />
-                      <Input type="number" label={t('evaluator.max')} placeholder="5" value={String(form.config.max ?? '')} onValueChange={(v) => updateConfig('max', v === '' ? undefined : Number(v))} size="sm" classNames={inputClass} />
-                    </div>
+                  <div>
+                    <label className="block text-xs font-normal text-zinc-400 mb-1.5">{t('evaluator.model')}</label>
+                    <select
+                      value={(() => {
+                        const modelVal = (form.config.model as string) ?? '';
+                        const byName = llmModels.find((m) => m.model === modelVal);
+                        return byName ? byName.id : modelVal || '';
+                      })()}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        if (id) {
+                          const m = llmModels.find((x) => x.id === id);
+                          updateConfig('model', m ? m.model : id);
+                        }
+                      }}
+                      disabled={llmModels.length === 0}
+                      className="w-full min-h-9 rounded-xl bg-white/5 border border-white/10 text-zinc-200 text-sm px-3 focus:outline-none focus:border-neon-red/50 focus:ring-1 focus:ring-neon-red/30 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <option value="" className="bg-zinc-900 text-zinc-500">
+                        {llmModels.length === 0 ? t('evaluator.noModelsHint') : '—'}
+                      </option>
+                      {llmModels.map((m) => (
+                        <option key={m.id} value={m.id} className="bg-zinc-900 text-zinc-200">
+                          {m.provider} / {m.model}
+                        </option>
+                      ))}
+                    </select>
                   </div>
-                  <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={Boolean(form.config.normalizeToZeroOne)}
-                      onChange={(e) => updateConfig('normalizeToZeroOne', e.target.checked)}
-                      className="rounded border-white/20 bg-white/5 text-neon-red focus:ring-neon-red/50"
-                    />
-                    <span className="text-sm text-zinc-400">{t('evaluator.normalizeToZeroOne')}</span>
-                  </label>
+                  {llmModels.length === 0 && (
+                    <p className="text-zinc-500 text-xs">{t('evaluator.noModelsHint')}</p>
+                  )}
                 </>
-              )}
-              {(form.kind === 'cost' || form.kind === 'time') && (
-                <div className="grid grid-cols-2 gap-3">
-                  <Input label="Unit" placeholder="usd / ms" value={(form.config.unit as string) ?? ''} onValueChange={(v) => updateConfig('unit', v)} size="sm" classNames={inputClass} />
-                  <Input type="number" label="Cap" placeholder="0.01" value={String(form.config.cap ?? '')} onValueChange={(v) => updateConfig('cap', v === '' ? undefined : Number(v))} size="sm" classNames={inputClass} />
-                  <label className="flex items-center gap-2 cursor-pointer col-span-2">
-                    <input type="checkbox" checked={Boolean(form.config.invert)} onChange={(e) => updateConfig('invert', e.target.checked)} className="rounded border-white/20 bg-white/5 text-neon-red focus:ring-neon-red/50" />
-                    <span className="text-sm text-zinc-400">Invert (higher = worse → normalize to lower score)</span>
-                  </label>
-                </div>
-              )}
-              {form.kind === 'accuracy' && (
-                <Input label="Target metric" placeholder="e.g. exact_match" value={(form.config.targetMetric as string) ?? ''} onValueChange={(v) => updateConfig('targetMetric', v)} size="sm" classNames={inputClass} />
-              )}
-              {form.kind === 'custom' && (
-                <p className="text-zinc-500 text-sm">Custom config: implement in backend. Use JSON or key-value in production.</p>
               )}
             </div>
           </ModalBody>
+          {saveError && (
+            <p className="px-6 pb-2 text-sm text-red-400">{saveError}</p>
+          )}
           <ModalFooter>
-            <Button variant="light" onPress={closeModal} className="text-zinc-400">
+            <Button variant="light" onPress={closeModal} className="text-zinc-400" isDisabled={saving}>
               {t('evaluator.cancel')}
             </Button>
-            <Button color="primary" onPress={saveFromForm} isDisabled={!isFormValid} className="btn-neon-primary rounded-xl font-medium">
-              {editingId ? t('evaluator.save') : t('evaluator.add')}
+            <Button color="primary" onPress={saveFromForm} isDisabled={!isFormValid || saving} className="btn-neon-primary rounded-xl font-medium">
+              {saving ? t('evaluator.saving') : (editingId ? t('evaluator.save') : t('evaluator.add'))}
             </Button>
           </ModalFooter>
         </ModalContent>

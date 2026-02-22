@@ -295,6 +295,7 @@ export default function Settings() {
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div>
+        <p className="text-[11px] font-medium uppercase tracking-[0.2em] text-neon-red/90 mb-1.5">{t('setting')}</p>
           <h1 className="text-xl font-semibold text-white tracking-tight">{t('settings.title')}</h1>
           <p className="text-zinc-500 text-sm mt-0.5">
             {t('settings.subtitle', { var: '${KEY}' })}
