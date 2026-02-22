@@ -1,0 +1,13 @@
+{
+  "specVersion": "0.1",
+  "id": "preset-time",
+  "name": "响应时间",
+  "createdAt": "2025-02-22T00:00:00Z",
+  "updatedAt": "2025-02-22T00:00:00Z",
+  "kind": "time",
+  "config": {
+    "unit": "ms",
+    "capMs": 30000,
+    "higherBetter": false
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "specVersion": "0.1",
+  "id": "preset-ai-quality",
+  "name": "AI 回答质量（1-5 分）",
+  "createdAt": "2025-02-22T00:00:00Z",
+  "updatedAt": "2025-02-22T00:00:00Z",
+  "kind": "ai",
+  "config": {
+    "prompt": "你是一个评估助手。请根据以下「用户问题」和「模型回答」对回答质量打分，仅输出 1-5 的整数（1=很差，5=很好）。\n\n用户问题：\n{{userInput}}\n\n模型回答：\n{{modelOutput}}\n\n只输出一个数字（1、2、3、4 或 5），不要其他内容。",
+    "model": "moonshot-v1-8k",
+    "temperature": 0,
+    "outputFormat": "number",
+    "min": 1,
+    "max": 5,
+    "normalizeToZeroOne": true,
+    "higherBetter": true
+  }
+}

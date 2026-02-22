@@ -1,0 +1,18 @@
+{
+  "specVersion": "0.1",
+  "id": "preset-ai-conciseness",
+  "name": "AI 简洁度与有用性",
+  "createdAt": "2025-02-22T00:00:00Z",
+  "updatedAt": "2025-02-22T00:00:00Z",
+  "kind": "ai",
+  "config": {
+    "prompt": "你是一个评估助手。请根据「用户问题」和「模型回答」评估：回答是否简洁且有用（无冗余、直击要点、对用户有帮助）。仅输出 0-100 的整数分数，100 表示最简洁有用，0 表示冗长无用。\n\n用户问题：\n{{userInput}}\n\n模型回答：\n{{modelOutput}}\n\n只输出一个 0-100 的整数，不要其他内容。",
+    "model": "moonshot-v1-8k",
+    "temperature": 0,
+    "outputFormat": "number",
+    "min": 0,
+    "max": 100,
+    "normalizeToZeroOne": true,
+    "higherBetter": true
+  }
+}
