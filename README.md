@@ -1,6 +1,8 @@
 # 🧬 OpenEvolant: The Autonomous Evolution Engine
 "Stop coding static agents. Start breeding them."
 
+[![Discord](https://img.shields.io/badge/Discord-OpenEvolant-5865F2?style=for-the-badge&logo=discord)](https://discord.gg/kueXC3vMKZ)  
+**Join us on Discord:** [https://discord.gg/kueXC3vMKZ](https://discord.gg/kueXC3vMKZ)
 
 ---
 
