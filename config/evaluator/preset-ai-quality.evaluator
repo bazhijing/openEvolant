@@ -1,7 +1,7 @@
 {
   "specVersion": "0.1",
   "id": "preset-ai-quality",
-  "name": "AI 回答质量（1-5 分）",
+  "name": "AI answer quality (1-5)",
   "createdAt": "2025-02-22T00:00:00Z",
   "updatedAt": "2025-02-22T00:00:00Z",
   "kind": "ai",

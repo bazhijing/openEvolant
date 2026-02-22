@@ -6,7 +6,7 @@ import { createLLMClient, type LLMConfig } from '@openevolant/llm';
 
 // --- 单条件评估器（.evaluator 单文件，供 .ns 引用）---
 
-export type SingleEvaluatorKind = 'ai' | 'cost' | 'time' | 'accuracy' | 'custom';
+export type SingleEvaluatorKind = 'ai' | 'aiwebsite' | 'cost' | 'time' | 'accuracy' | 'custom';
 
 export interface SingleEvaluatorSpec {
   specVersion: string;
@@ -53,7 +53,8 @@ export async function runSingleEvaluator(
 ): Promise<{ score: number }> {
   const cfg = spec.config || {};
   switch (spec.kind) {
-    case 'ai': {
+    case 'ai':
+    case 'aiwebsite': {
       const prompt = (cfg['prompt'] as string) ?? '';
       const userInput = context.userInput ?? '';
       const modelOutput = context.modelOutput ?? '';
@@ -105,13 +106,13 @@ export async function runSingleEvaluator(
   }
 }
 
-// --- 复合评估配置（多维度 + 聚合，兼容现有 example.evaluator.json）---
+// --- 复合评估配置（多维度 + 聚合，兼容现有 example.evaluator）---
 
 export interface EvaluatorDimension {
   key: string;
   name: string;
   weight: number;
-  kind: 'ai' | 'cost' | 'time' | 'accuracy' | 'custom';
+  kind: 'ai' | 'aiwebsite' | 'cost' | 'time' | 'accuracy' | 'custom';
   config: Record<string, unknown>;
 }
 

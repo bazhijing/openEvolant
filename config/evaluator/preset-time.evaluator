@@ -1,13 +1,12 @@
 {
   "specVersion": "0.1",
-  "id": "preset-cost",
-  "name": "花费（成本）",
+  "id": "preset-time",
+  "name": "Total time per Gen",
   "createdAt": "2025-02-22T00:00:00Z",
   "updatedAt": "2025-02-22T00:00:00Z",
-  "kind": "cost",
+  "kind": "time",
   "config": {
-    "unit": "usd",
-    "cap": 0.10,
+    "unit": "ms",
     "higherBetter": false
   }
 }

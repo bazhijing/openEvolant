@@ -1,0 +1,13 @@
+{"specVersion":"0.1",
+"id":"preset-ai-screenshot-quality",
+"name":"AI website screenshot quality (1-5)",
+"createdAt":"2025-02-22T00:00:00Z",
+"updatedAt":"2025-02-22T00:00:00Z",
+"kind":"aiwebsite",
+"config":{"prompt":"You are an evaluation assistant. Rate the **website screenshot** below for visual and overall quality. Consider: layout, typography, clarity, aesthetics, and professionalism. Output only a single integer from 1 to 5 (1=very poor, 5=excellent).\n\nWebsite screenshot (image URL or description):\n{{modelOutput}}\n\nIf the user request or context is provided:\n{{userInput}}\n\nOutput only one number (1, 2, 3, 4, or 5), nothing else.",
+"model":"moonshot-v1-8k",
+"temperature":0,
+"outputFormat":"number",
+"min":1,"max":5,
+"normalizeToZeroOne":true,
+"higherBetter":true}}

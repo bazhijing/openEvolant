@@ -1,7 +1,7 @@
 {
   "specVersion": "0.1",
   "id": "eval-balanced-01",
-  "name": "平衡型（省时省钱+质量）",
+  "name": "Balanced (time/cost + quality)",
   "runConstraints": {
     "timeLimitSeconds": 3600,
     "budgetMoney": 10.0,
@@ -13,9 +13,9 @@
     "stopWhenNoImprovementForIterations": 5
   },
   "dimensions": [
-    { "key": "ai", "name": "AI 质量", "weight": 0.5, "kind": "ai", "config": {} },
-    { "key": "cost", "name": "花费", "weight": 0.3, "kind": "cost", "config": { "invert": true } },
-    { "key": "time", "name": "响应时间", "weight": 0.2, "kind": "time", "config": { "invert": true } }
+    { "key": "ai", "name": "AI quality", "weight": 0.5, "kind": "ai", "config": {} },
+    { "key": "cost", "name": "Cost", "weight": 0.3, "kind": "cost", "config": { "invert": true } },
+    { "key": "time", "name": "Total time per Gen", "weight": 0.2, "kind": "time", "config": { "invert": true } }
   ],
   "aggregation": { "method": "weighted_sum", "primaryDimension": null }
 }

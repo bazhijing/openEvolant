@@ -161,6 +161,55 @@ function startServer(opts: {
     return null;
   }
 
+  /** 解析仓库内 config/evaluator（预设，随仓库打包） */
+  function resolveRepoEvaluatorDir(): string | null {
+    const candidates = [
+      path.join(__dirname, '..', '..', 'config', 'evaluator'),
+      path.join(__dirname, '..', '..', '..', 'config', 'evaluator'),
+    ];
+    for (const dir of candidates) {
+      if (fs.existsSync(dir) && fs.statSync(dir).isDirectory()) return dir;
+    }
+    return null;
+  }
+
+  function readEvaluatorsFromDir(dir: string, source: 'preset' | 'user'): Array<Record<string, unknown>> {
+    const evaluators: Array<Record<string, unknown>> = [];
+    const files = fs.readdirSync(dir).filter((f) => f.endsWith('.evaluator'));
+    for (const file of files) {
+      try {
+        const raw = fs.readFileSync(path.join(dir, file), 'utf-8');
+        const spec = JSON.parse(raw) as Record<string, unknown>;
+        if (spec && typeof spec.id === 'string') evaluators.push({ ...spec, source });
+      } catch {
+        /* skip invalid file */
+      }
+    }
+    return evaluators;
+  }
+
+  /** 根目录 config/evaluator 为空时写入示例，便于测试用户侧 evaluator */
+  const EXAMPLE_USER_EVALUATOR = {
+    specVersion: '0.1',
+    id: 'example-user',
+    name: 'Example (user)',
+    createdAt: '2025-02-22T00:00:00Z',
+    updatedAt: '2025-02-22T00:00:00Z',
+    kind: 'accuracy',
+    config: { higherBetter: true },
+  };
+
+  function ensureUserEvaluatorDirWithExample(userEvaluatorDir: string): void {
+    if (!fs.existsSync(userEvaluatorDir)) {
+      fs.mkdirSync(userEvaluatorDir, { recursive: true });
+    }
+    const files = fs.readdirSync(userEvaluatorDir).filter((f) => f.endsWith('.evaluator'));
+    if (files.length === 0) {
+      const examplePath = path.join(userEvaluatorDir, 'example-user.evaluator');
+      fs.writeFileSync(examplePath, JSON.stringify(EXAMPLE_USER_EVALUATOR, null, 2), 'utf-8');
+    }
+  }
+
   // 健康检查 / 简单 API 占位
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
@@ -231,6 +280,26 @@ function startServer(opts: {
       const data = JSON.parse(raw) as { vendors?: Array<{ id: string; name: string; models?: Array<{ id: string; name: string }> }> };
       const vendors = Array.isArray(data.vendors) ? data.vendors : [];
       res.json({ vendors });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  // GET 所有 .evaluator：预设（仓库 config/evaluator 打包）+ 用户（根目录 config/evaluator）。每项带 source: 'preset' | 'user'
+  const userEvaluatorDir = path.join(opts.configDir, 'evaluator');
+  app.get('/api/config/evaluators', (_req: Request, res: Response) => {
+    try {
+      ensureUserEvaluatorDirWithExample(userEvaluatorDir);
+
+      const presets: Array<Record<string, unknown>> = [];
+      const repoEvaluatorDir = resolveRepoEvaluatorDir();
+      if (repoEvaluatorDir) {
+        presets.push(...readEvaluatorsFromDir(repoEvaluatorDir, 'preset'));
+      }
+
+      const userEvaluators = readEvaluatorsFromDir(userEvaluatorDir, 'user');
+      const evaluators = [...presets, ...userEvaluators];
+      res.json({ evaluators });
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }
