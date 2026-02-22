@@ -15,6 +15,8 @@
 **Jammie** — Former Tencent AiLab, now an AI hardware entrepreneur.  
 **Company:** [someonewaits.com](https://someonewaits.com)
 
+**Chloe** — Co-founder. Ex CVC for Swire Group (太古集团). Strategic and venture perspective. MBA from The University of Sydney.
+
 ---
 
 ## 🌟 Overview

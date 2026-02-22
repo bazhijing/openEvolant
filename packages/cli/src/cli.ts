@@ -149,6 +149,18 @@ function startServer(opts: {
   const defaultLlmPath = path.join(llmDir, 'default.llm.json');
   const exampleLlmPath = path.join(llmDir, 'example.llm.json');
 
+  /** 解析仓库内 config/llm 目录（支持从 packages/cli 或 packages/cli/dist 运行） */
+  function resolveRepoLlmConfigDir(): string | null {
+    const candidates = [
+      path.join(__dirname, '..', '..', 'config', 'llm'),
+      path.join(__dirname, '..', '..', '..', 'config', 'llm'),
+    ];
+    for (const dir of candidates) {
+      if (fs.existsSync(dir)) return dir;
+    }
+    return null;
+  }
+
   // 健康检查 / 简单 API 占位
   app.get('/api/health', (_req: Request, res: Response) => {
     res.json({
@@ -205,12 +217,35 @@ function startServer(opts: {
     }
   });
 
-  // POST 保存 LLM 配置到 default.llm.json
+  // GET 支持的供应商与模型列表（来自 config/llm/supported-vendors-models.json）
+  app.get('/api/config/llm/supported', (_req: Request, res: Response) => {
+    try {
+      const repoLlmDir = resolveRepoLlmConfigDir();
+      const supportedPath = repoLlmDir
+        ? path.join(repoLlmDir, 'supported-vendors-models.json')
+        : null;
+      if (!supportedPath || !fs.existsSync(supportedPath)) {
+        return res.json({ vendors: [] });
+      }
+      const raw = fs.readFileSync(supportedPath, 'utf-8');
+      const data = JSON.parse(raw) as { vendors?: Array<{ id: string; name: string; models?: Array<{ id: string; name: string }> }> };
+      const vendors = Array.isArray(data.vendors) ? data.vendors : [];
+      res.json({ vendors });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  });
+
+  // POST 保存 LLM 配置到 default.llm.json（至少保留一个模型）
   app.post('/api/config/llm', (req: Request, res: Response) => {
     try {
       const body = req.body as Record<string, unknown>;
       if (!body || typeof body !== 'object') {
         return res.status(400).json({ error: 'Invalid JSON body' });
+      }
+      const models = Array.isArray(body.models) ? body.models : [];
+      if (models.length < 1) {
+        return res.status(400).json({ error: 'At least one model is required' });
       }
       if (!fs.existsSync(llmDir)) {
         fs.mkdirSync(llmDir, { recursive: true });
@@ -219,10 +254,10 @@ function startServer(opts: {
         specVersion: body.specVersion ?? '0.1',
         id: body.id ?? 'default-llm',
         name: body.name ?? '默认 LLM 配置',
-        models: Array.isArray(body.models) ? body.models : [],
+        models,
       };
       fs.writeFileSync(defaultLlmPath, JSON.stringify(payload, null, 2), 'utf-8');
-      res.json(payload);
+      res.json({ ...payload, savedPath: defaultLlmPath });
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }

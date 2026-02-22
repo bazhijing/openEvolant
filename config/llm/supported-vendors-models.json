@@ -1,0 +1,26 @@
+{
+  "cnyPerUsd": 7.25,
+  "cnyPerUsdNote": "Approximate rate for USD conversion; 1 USD = 7.25 CNY. Update as needed.",
+  "vendors": [
+    {
+      "id": "moonshot",
+      "name": "Moonshot",
+      "models": [
+        {
+          "id": "kimi-k2.5",
+          "name": "kimi-k2.5",
+          "billingUnit": "1M tokens",
+          "pricing": {
+            "inputCnyCacheHit": 0.70,
+            "inputCnyCacheMiss": 4.00,
+            "outputCny": 21.00,
+            "inputUsdCacheHit": 0.097,
+            "inputUsdCacheMiss": 0.552,
+            "outputUsd": 2.897
+          },
+          "contextLength": 262144
+        }
+      ]
+    }
+  ]
+}
