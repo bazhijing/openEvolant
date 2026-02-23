@@ -2,6 +2,7 @@ import path from 'path';
 import fs from 'fs';
 import type { Request, Response } from 'express';
 import type { ServerContext } from '../server-context.js';
+import { getEvolutionManager } from '../evolution-manager.js';
 
 /** .evolution 文件顶层结构（正在运行/暂停的进化任务，比 .genes 更复杂） */
 export interface EvolutionFile {
@@ -147,6 +148,20 @@ export function registerEvolutionRoutes(
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const filePath = path.join(dir, `${id}.evolution`);
       fs.writeFileSync(filePath, JSON.stringify(evolution, null, 2), 'utf-8');
+
+      try {
+        const manager = getEvolutionManager();
+        manager.startEvolution({
+          id,
+          speciesName: evolution.speciesName,
+          genePool,
+          evaluator,
+          policy,
+        });
+      } catch {
+        // 如果 manager 尚未初始化，静默忽略以保证 API 不被阻塞
+      }
+
       res.status(201).json(evolution);
     } catch (e) {
       res.status(500).json({ error: String(e) });
@@ -295,6 +310,20 @@ export function registerEvolutionRoutes(
       if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
       const filePath = path.join(dir, `${id}.evolution`);
       fs.writeFileSync(filePath, JSON.stringify(evolution, null, 2), 'utf-8');
+
+      try {
+        const manager = getEvolutionManager();
+        manager.startEvolution({
+          id,
+          speciesName: evolution.speciesName,
+          genePool,
+          evaluator,
+          policy,
+        });
+      } catch {
+        // 同上，manager 相关错误不影响配置写入与 API 返回
+      }
+
       res.status(201).json(evolution);
     } catch (e) {
       res.status(500).json({ error: String(e) });

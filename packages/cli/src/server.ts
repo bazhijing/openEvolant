@@ -11,6 +11,7 @@ import {
   registerGenesRoutes,
   registerEvolutionRoutes,
 } from './routes/index.js';
+import { initEvolutionManager } from './evolution-manager.js';
 
 /**
  * 创建并配置 Express 应用（中间件 + 所有 API 路由），不监听端口。
@@ -56,6 +57,12 @@ export function createApp(ctx: ServerContext): express.Application {
  * 启动 HTTP 服务：创建 app、监听端口并输出启动信息。
  */
 export function startServer(ctx: ServerContext): void {
+  initEvolutionManager({
+    rootDir: ctx.rootDir,
+    dataDir: ctx.dataDir,
+    configDir: ctx.configDir,
+  });
+
   const app = createApp(ctx);
   const server = http.createServer(app);
 
