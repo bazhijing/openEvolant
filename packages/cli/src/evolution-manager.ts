@@ -9,8 +9,9 @@ export interface EvolutionStartOptions {
   evaluator: string;
   policy: string;
   budgetUsd?: number;
-  timeLimitMinutes?: number;
+  timeLimitMs?: number;
   iterationCount?: number;
+  taskContent?: string;
 }
 
 export interface EvolutionManagerInitOptions {

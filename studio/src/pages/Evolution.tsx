@@ -9,6 +9,7 @@ import {
   ModalFooter,
   Button,
   Input,
+  Textarea,
   Card,
   CardBody,
   Chip,
@@ -70,14 +71,20 @@ type Evolution = {
 };
 
 const DEFAULT_GENE_POOL = 'default.genes';
-const SELECTION_POLICY = '自然选择';
+const POLICY_OPTIONS = [
+  { value: '自然选择', labelKey: 'evolution.policyNaturalSelection' as const },
+  { value: 'balanced', labelKey: 'evolution.policyBalanced' as const },
+  { value: 'conservative', labelKey: 'evolution.policyConservative' as const },
+];
 
 export default function Evolution() {
   const { t } = useTranslation();
   const [modalOpen, setModalOpen] = useState(false);
   const [speciesName, setSpeciesName] = useState('');
+  const [taskContent, setTaskContent] = useState('');
+  const [policy, setPolicy] = useState(POLICY_OPTIONS[0].value);
   const [budgetUsd, setBudgetUsd] = useState('');
-  const [timeLimitMinutes, setTimeLimitMinutes] = useState('');
+  const [timeLimitMs, setTimeLimitMs] = useState('');
   const [iterationCount, setIterationCount] = useState('');
 
   const [evolutions, setEvolutions] = useState<Evolution[]>([]);
@@ -113,16 +120,19 @@ export default function Evolution() {
         body: JSON.stringify({
           speciesName: speciesName.trim() || undefined,
           genePool: DEFAULT_GENE_POOL,
-          policy: SELECTION_POLICY,
+          policy,
+          taskContent: taskContent.trim() || undefined,
           budgetUsd: budgetUsd.trim() ? Number(budgetUsd) : undefined,
-          timeLimitMinutes: timeLimitMinutes.trim() ? Number(timeLimitMinutes) : undefined,
+          timeLimitMs: timeLimitMs.trim() ? Number(timeLimitMs) : undefined,
           iterationCount: iterationCount.trim() ? Number(iterationCount) : undefined,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || res.statusText);
       setSpeciesName('');
+      setTaskContent('');
+      setPolicy(POLICY_OPTIONS[0].value);
       setBudgetUsd('');
-      setTimeLimitMinutes('');
+      setTimeLimitMs('');
       setIterationCount('');
       setModalOpen(false);
       await fetchEvolutions();
@@ -444,20 +454,54 @@ export default function Evolution() {
         </AnimatePresence>
       </div>
 
-      {/* New evolution modal */}
-      <Modal
-        isOpen={modalOpen}
-        onOpenChange={setModalOpen}
-        classNames={{
-          base: 'bg-surface-elevated border border-surface-border',
-          header: 'border-b border-surface-border',
-          body: 'py-6',
-          footer: 'border-t border-surface-border',
-        }}
-      >
-        <ModalContent>
-          <ModalHeader className="text-white">{t('evolution.newEvolution')}</ModalHeader>
-          <ModalBody className="space-y-4">
+      {/* New evolution modal — core feature, premium layout. Wrapped in div to avoid ref from motion.div causing React ref warning. */}
+      <div>
+        <Modal
+          isOpen={modalOpen}
+          onOpenChange={setModalOpen}
+          size="3xl"
+          scrollBehavior="inside"
+          classNames={{
+            base: 'bg-gradient-to-b from-zinc-900/98 to-zinc-950/98 border border-neon-red/30 shadow-[0_0_60px_-12px_rgba(255,8,68,0.25),inset_0_1px_0_0_rgba(255,255,255,0.05)] backdrop-blur-xl',
+            header: 'border-b border-white/10 pb-4',
+            body: 'py-6 overflow-y-auto max-h-[60vh]',
+            footer: 'border-t border-white/10 pt-4',
+          }}
+        >
+          <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-neon-red/20 border border-neon-red/40 text-neon-red shadow-[0_0_20px_-4px_rgba(255,8,68,0.4)]">
+                <IconDna />
+              </div>
+              <span className="text-xl font-bold text-white tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-white to-zinc-300">
+                {t('evolution.newEvolution')}
+              </span>
+            </div>
+            <p className="text-zinc-500 text-sm font-normal pl-12">
+              {t('evolution.newEvolutionSummary')}
+            </p>
+          </ModalHeader>
+          <ModalBody className="space-y-5">
+            {/* Task content — primary focus, large text area */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-zinc-400 block">
+                {t('evolution.taskContent')}
+              </label>
+              <Textarea
+                placeholder={t('evolution.taskContentPlaceholder')}
+                value={taskContent}
+                onValueChange={setTaskContent}
+                minRows={6}
+                maxRows={14}
+                classNames={{
+                  base: 'w-full',
+                  inputWrapper: 'rounded-xl bg-black/30 border border-white/10 hover:border-neon-red/40 focus-within:border-neon-red focus-within:shadow-[0_0_0_1px_rgba(255,8,68,0.5)] transition-all duration-200',
+                  input: 'text-zinc-200 placeholder:text-zinc-600 text-base min-h-[140px]',
+                }}
+              />
+            </div>
+
             <Input
               label={t('evolution.speciesName')}
               placeholder={t('evolution.speciesNamePlaceholder')}
@@ -469,6 +513,7 @@ export default function Evolution() {
                 label: 'text-zinc-400',
               }}
             />
+
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Input
                 label={t('evolution.genePool')}
@@ -481,17 +526,22 @@ export default function Evolution() {
                   label: 'text-zinc-500',
                 }}
               />
-              <Input
-                label={t('evolution.policy')}
-                value={t('evolution.policyNaturalSelection')}
-                isReadOnly
-                classNames={{
-                  inputWrapper: 'rounded-xl bg-white/5 border border-white/10 opacity-80',
-                  input: 'text-zinc-400',
-                  label: 'text-zinc-500',
-                }}
-              />
+              <div className="space-y-2">
+                <label className="block text-sm text-zinc-500">{t('evolution.policy')}</label>
+                <select
+                  value={policy}
+                  onChange={(e) => setPolicy(e.target.value)}
+                  className="w-full rounded-xl bg-white/5 border border-white/10 hover:border-neon-red/30 focus:border-neon-red focus:outline-none focus:ring-1 focus:ring-neon-red/30 px-3 py-2.5 text-sm text-zinc-200"
+                >
+                  {POLICY_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value} className="bg-zinc-900 text-zinc-200">
+                      {t(opt.labelKey)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input
                 label={t('evolution.budgetUsd')}
@@ -508,12 +558,12 @@ export default function Evolution() {
                 }}
               />
               <Input
-                label={t('evolution.timeLimitMinutes')}
-                placeholder={t('evolution.timeLimitPlaceholder')}
+                label={t('evolution.timeLimitMs')}
+                placeholder={t('evolution.timeLimitMsPlaceholder')}
                 type="number"
                 min={1}
-                value={timeLimitMinutes}
-                onValueChange={setTimeLimitMinutes}
+                value={timeLimitMs}
+                onValueChange={setTimeLimitMs}
                 classNames={{
                   inputWrapper: 'rounded-xl bg-white/5 border border-white/10 hover:border-neon-red/30 focus-within:border-neon-red',
                   input: 'text-zinc-200',
@@ -524,7 +574,7 @@ export default function Evolution() {
                 label={t('evolution.iterationCount')}
                 placeholder={t('evolution.iterationCountPlaceholder')}
                 type="number"
-                min={1}
+                min={2}
                 value={iterationCount}
                 onValueChange={setIterationCount}
                 classNames={{
@@ -538,16 +588,22 @@ export default function Evolution() {
               {t('evolution.demoOnly')}
             </p>
           </ModalBody>
-          <ModalFooter>
+          <ModalFooter className="gap-2">
             <Button variant="light" onPress={() => setModalOpen(false)} className="text-zinc-400">
               {t('evolution.cancel')}
             </Button>
-            <Button color="danger" className="btn-neon-primary" onPress={handleStart}>
+            <Button
+              color="danger"
+              className="btn-neon-primary font-semibold shadow-[0_0_24px_-4px_rgba(255,8,68,0.4)]"
+              startContent={<IconRocket />}
+              onPress={handleStart}
+            >
               {t('evolution.start')}
             </Button>
           </ModalFooter>
         </ModalContent>
-      </Modal>
+        </Modal>
+      </div>
     </motion.div>
   );
 }

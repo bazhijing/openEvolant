@@ -12,10 +12,12 @@ export interface EvolutionFile {
   genePool: string;
   evaluator: string;
   policy: string;
+  /** 任务内容描述 */
+  taskContent?: string;
   /** 预算 USD */
   budgetUsd?: number;
-  /** 时间限制（分钟） */
-  timeLimitMinutes?: number;
+  /** 时间限制（毫秒） */
+  timeLimitMs?: number;
   /** 迭代轮数 */
   iterationCount?: number;
   /** running | paused，v1 仅此两种 */
@@ -127,13 +129,14 @@ export function registerEvolutionRoutes(
   });
 
   app.post('/api/evolutions', (req: Request, res: Response) => {
-    const body = req.body as Partial<EvolutionFile> & { budgetUsd?: number; timeLimitMinutes?: number; iterationCount?: number };
+    const body = req.body as Partial<EvolutionFile> & { budgetUsd?: number; timeLimitMs?: number; iterationCount?: number; taskContent?: string };
     const speciesName = typeof body?.speciesName === 'string' ? body.speciesName.trim() : '';
     const genePool = typeof body?.genePool === 'string' ? body.genePool : 'default.genes';
     const policy = typeof body?.policy === 'string' ? body.policy : '自然选择';
+    const taskContent = typeof body?.taskContent === 'string' ? body.taskContent.trim() || undefined : undefined;
     const budgetUsd = typeof body?.budgetUsd === 'number' && body.budgetUsd >= 0 ? body.budgetUsd : undefined;
-    const timeLimitMinutes = typeof body?.timeLimitMinutes === 'number' && body.timeLimitMinutes >= 1 ? body.timeLimitMinutes : undefined;
-    const iterationCount = typeof body?.iterationCount === 'number' && body.iterationCount >= 1 ? body.iterationCount : undefined;
+    const timeLimitMs = typeof body?.timeLimitMs === 'number' && body.timeLimitMs >= 1 ? body.timeLimitMs : undefined;
+    const iterationCount = typeof body?.iterationCount === 'number' && body.iterationCount >= 2 ? body.iterationCount : undefined;
     const id = 'ev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
     const now = new Date().toISOString();
     const evolution: EvolutionFile = {
@@ -141,10 +144,11 @@ export function registerEvolutionRoutes(
       id,
       speciesName: speciesName || id,
       genePool,
-      evaluator: '', // 前端已移除选择，由 runner 使用默认
+      evaluator: '',
       policy,
+      taskContent,
       budgetUsd,
-      timeLimitMinutes,
+      timeLimitMs,
       iterationCount,
       status: 'running',
       scheduleType: 'continuous',
@@ -168,8 +172,9 @@ export function registerEvolutionRoutes(
           genePool,
           evaluator: evolution.evaluator,
           policy,
+          taskContent: evolution.taskContent,
           budgetUsd: evolution.budgetUsd,
-          timeLimitMinutes: evolution.timeLimitMinutes,
+          timeLimitMs: evolution.timeLimitMs,
           iterationCount: evolution.iterationCount,
         });
       } catch {
