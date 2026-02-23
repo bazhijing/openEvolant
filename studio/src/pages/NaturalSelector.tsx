@@ -57,6 +57,9 @@ export type NSConfig = {
   aggregation: { method: 'weighted_sum' | 'min' | 'max'; primaryDimension: string | null };
 };
 
+/** 列表项带来源：preset=仓库 config/ns，user=应用根 config/ns */
+export type NSConfigWithSource = NSConfig & { source?: 'preset' | 'user' };
+
 const defaultRunConstraints: NSConfig['runConstraints'] = {
   timeLimitSeconds: 3600,
   budgetMoney: 10,
@@ -92,33 +95,48 @@ function normalizeEvaluatorKind(raw: unknown): EvaluatorKind {
   return 'custom';
 }
 
-const initialConfigs: NSConfig[] = [
-  {
-    specVersion: '0.1',
-    id: 'ns-balanced-01',
-    name: 'Balanced (quality · cost · time)',
-    createdAt: '2025-02-22T00:00:00Z',
-    updatedAt: '2025-02-22T00:00:00Z',
+function normalizePolicyFromApi(spec: Record<string, unknown>): NSConfigWithSource {
+  const runConstraints = spec.runConstraints as Record<string, unknown> | undefined;
+  const interruptConditions = spec.interruptConditions as Record<string, unknown> | undefined;
+  const evaluatorRefs = Array.isArray(spec.evaluatorRefs) ? spec.evaluatorRefs : [];
+  const aggregation = spec.aggregation as Record<string, unknown> | undefined;
+  return {
+    specVersion: String(spec.specVersion ?? '0.1'),
+    id: String(spec.id ?? ''),
+    name: String(spec.name ?? ''),
+    createdAt: typeof spec.createdAt === 'string' ? spec.createdAt : undefined,
+    updatedAt: typeof spec.updatedAt === 'string' ? spec.updatedAt : undefined,
     runConstraints: {
-      timeLimitSeconds: 3600,
-      budgetMoney: 10,
-      maxIterations: 50,
-      maxConcurrentRuns: 2,
+      timeLimitSeconds: runConstraints?.timeLimitSeconds != null ? Number(runConstraints.timeLimitSeconds) : null,
+      budgetMoney: runConstraints?.budgetMoney != null ? Number(runConstraints.budgetMoney) : null,
+      maxIterations: runConstraints?.maxIterations != null ? Number(runConstraints.maxIterations) : 50,
+      maxConcurrentRuns: runConstraints?.maxConcurrentRuns != null ? Number(runConstraints.maxConcurrentRuns) : null,
     },
     interruptConditions: {
-      stopWhenScoreAbove: 0.95,
-      stopWhenScoreBelow: null,
-      stopWhenNoImprovementForIterations: 5,
-      description: 'Stop when score ≥ 0.95 or no improvement for 5 rounds',
+      stopWhenScoreAbove: interruptConditions?.stopWhenScoreAbove != null ? Number(interruptConditions.stopWhenScoreAbove) : null,
+      stopWhenScoreBelow: interruptConditions?.stopWhenScoreBelow != null ? Number(interruptConditions.stopWhenScoreBelow) : null,
+      stopWhenNoImprovementForIterations: interruptConditions?.stopWhenNoImprovementForIterations != null ? Number(interruptConditions.stopWhenNoImprovementForIterations) : null,
+      description: typeof interruptConditions?.description === 'string' ? interruptConditions.description : undefined,
     },
-    evaluatorRefs: [
-      { evaluatorId: 'eval-ai-quality-01', key: 'ai', weight: 0.5 },
-      { evaluatorId: 'eval-cost-01', key: 'cost', weight: 0.3 },
-      { evaluatorId: 'eval-latency-01', key: 'time', weight: 0.2 },
-    ],
-    aggregation: { method: 'weighted_sum', primaryDimension: null },
-  },
-];
+    evaluatorRefs: evaluatorRefs.map((r: unknown) => {
+      const ref = r as Record<string, unknown>;
+      return {
+        evaluatorId: String(ref.evaluatorId ?? ''),
+        key: String(ref.key ?? ''),
+        weight: Number(ref.weight ?? 0),
+        config: typeof ref.config === 'string' ? ref.config : undefined,
+        budget: ref.budget != null ? Number(ref.budget) : undefined,
+        ms: ref.ms != null ? Number(ref.ms) : undefined,
+        score: ref.score != null ? Number(ref.score) : undefined,
+      };
+    }),
+    aggregation: {
+      method: (aggregation?.method as 'weighted_sum' | 'min' | 'max') ?? 'weighted_sum',
+      primaryDimension: aggregation?.primaryDimension != null ? String(aggregation.primaryDimension) : null,
+    },
+    source: spec.source === 'user' ? 'user' : 'preset',
+  };
+}
 
 const inputClass = {
   inputWrapper: [
@@ -314,12 +332,34 @@ function RefTableRow({
 
 export default function NaturalSelector() {
   const { t } = useTranslation();
-  const [configs, setConfigs] = useState<NSConfig[]>(initialConfigs);
+  const [configs, setConfigs] = useState<NSConfigWithSource[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingSource, setEditingSource] = useState<'preset' | 'user' | null>(null);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [form, setForm] = useState<NSConfig>(emptyConfig());
   const [submitAttempted, setSubmitAttempted] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [evaluatorList, setEvaluatorList] = useState<EvaluatorOption[]>([]);
+
+  const loadConfigs = () => {
+    setLoading(true);
+    setLoadError(null);
+    fetch(`${API_BASE}/api/config/ns`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(res.statusText))))
+      .then((data: { policies?: Record<string, unknown>[] }) => {
+        const raw = Array.isArray(data.policies) ? data.policies : [];
+        setConfigs(raw.map(normalizePolicyFromApi));
+      })
+      .catch((e) => setLoadError(e?.message ?? 'Failed to load'))
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadConfigs();
+  }, []);
 
   useEffect(() => {
     fetch(`${API_BASE}/api/config/evaluators`)
@@ -346,40 +386,91 @@ export default function NaturalSelector() {
       interruptConditions: { ...defaultInterrupt, description: t('ns.interruptDescDefault') },
       evaluatorRefs: [{ evaluatorId: evaluatorList[0]?.id ?? '', key: 'ai', weight: 0.5 }],
     });
+    setEditingId(null);
+    setEditingSource(null);
     setSubmitAttempted(false);
     setIsAddModalOpen(true);
   };
 
-  const openEdit = (c: NSConfig) => {
-    setForm(JSON.parse(JSON.stringify(c)));
+  const openEdit = (c: NSConfigWithSource) => {
+    const { source, ...rest } = c;
+    setForm(JSON.parse(JSON.stringify(rest)));
     setEditingId(c.id);
+    setEditingSource(source ?? 'user');
     setSubmitAttempted(false);
+    setSaveError(null);
   };
 
   const closeModal = () => {
     setIsAddModalOpen(false);
     setEditingId(null);
+    setEditingSource(null);
     setSubmitAttempted(false);
+    setSaveError(null);
   };
 
-  const saveFromForm = () => {
+  const saveFromForm = async () => {
     if (!isFormValid) {
       setSubmitAttempted(true);
       return;
     }
+    setSaving(true);
+    setSaveError(null);
     const next = { ...form, updatedAt: new Date().toISOString() };
-    if (editingId) {
-      setConfigs((prev) => prev.map((c) => (c.id === editingId ? next : c)));
-    } else {
-      if (!next.createdAt) next.createdAt = new Date().toISOString();
-      setConfigs((prev) => [...prev, next]);
+    if (!next.createdAt) next.createdAt = new Date().toISOString();
+    try {
+      const res = await fetch(`${API_BASE}/api/config/ns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(next),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? res.statusText);
+      }
+      loadConfigs();
+      closeModal();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to save');
+    } finally {
+      setSaving(false);
     }
-    closeModal();
   };
 
-  const remove = (id: string) => {
-    setConfigs((prev) => prev.filter((c) => c.id !== id));
-    if (editingId === id) closeModal();
+  const duplicateToUser = async () => {
+    const copy = { ...form, id: `${form.id}-copy`, name: `${form.name} (${t('ns.copy')})`, updatedAt: new Date().toISOString() };
+    if (!copy.createdAt) copy.createdAt = new Date().toISOString();
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch(`${API_BASE}/api/config/ns`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(copy),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? res.statusText);
+      }
+      loadConfigs();
+      closeModal();
+    } catch (e) {
+      setSaveError(e instanceof Error ? e.message : 'Failed to duplicate');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const remove = async (c: NSConfigWithSource) => {
+    if (c.source === 'preset') return;
+    try {
+      const res = await fetch(`${API_BASE}/api/config/ns/${encodeURIComponent(c.id)}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(res.statusText);
+      if (editingId === c.id) closeModal();
+      loadConfigs();
+    } catch {
+      /* ignore */
+    }
   };
 
   const addRef = () => {
@@ -433,7 +524,19 @@ export default function NaturalSelector() {
             {t('ns.configuredCount', { count: configs.length })}
           </p>
         </div>
-        {configs.length === 0 ? (
+        {loading ? (
+          <div className="py-16 text-center">
+            <p className="text-zinc-500 text-sm">{t('ns.loading')}</p>
+          </div>
+        ) : loadError ? (
+          <div className="py-16 text-center">
+            <p className="text-danger-400 text-sm">{t('ns.loadError')}</p>
+            <p className="text-zinc-500 text-xs mt-1">{loadError}</p>
+            <Button size="sm" variant="flat" onPress={loadConfigs} className="mt-3 text-neon-red/90">
+              {t('ns.retry')}
+            </Button>
+          </div>
+        ) : configs.length === 0 ? (
           <div className="py-16 text-center">
             <div className="w-12 h-12 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center mx-auto mb-3">
               <svg className="w-6 h-6 text-zinc-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -448,7 +551,7 @@ export default function NaturalSelector() {
             <AnimatePresence>
               {configs.map((c, i) => (
                 <motion.li
-                  key={c.id}
+                  key={`${c.id}-${c.source ?? 'user'}`}
                   layout
                   initial={{ opacity: 0, y: 4 }}
                   animate={{ opacity: 1, y: 0 }}
@@ -459,7 +562,12 @@ export default function NaturalSelector() {
                   <div className="absolute left-0 top-0 bottom-0 w-0.5 bg-neon-red/0 group-hover:bg-neon-red/40 transition-colors rounded-l-2xl" />
                   <div className="flex items-center gap-4 px-5 py-4 hover:bg-white/[0.02] transition-colors">
                     <div className="min-w-0 flex-1">
-                      <p className="text-zinc-100 font-medium truncate">{c.name}</p>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-zinc-100 font-medium truncate">{c.name}</p>
+                        <Chip size="sm" variant="flat" classNames={{ base: c.source === 'preset' ? 'bg-zinc-600/30 border border-zinc-500/30' : 'bg-emerald-500/15 border border-emerald-500/30', content: c.source === 'preset' ? 'text-zinc-400 text-xs' : 'text-emerald-400 text-xs' }}>
+                          {c.source === 'preset' ? t('ns.sourcePreset') : t('ns.sourceUser')}
+                        </Chip>
+                      </div>
                       <p className="text-zinc-500 text-xs font-mono truncate mt-0.5">{c.id}</p>
                     </div>
                     <div className="flex items-center gap-2 flex-wrap justify-end">
@@ -477,34 +585,33 @@ export default function NaturalSelector() {
                         </Chip>
                       )}
                       {formatFormula(c.evaluatorRefs) && (
-                        <span className="flex items-center gap-1.5">
-                          <Chip size="sm" variant="flat" classNames={{ base: 'rounded-lg bg-blue-500/15 border border-blue-500/30', content: 'text-blue-400 text-xs font-medium' }}>
+                        <Tooltip content={formatFormula(c.evaluatorRefs)} placement="top" delay={300} classNames={{ base: 'bg-blue-500/15 border border-blue-500/30', content: 'font-mono text-xs text-blue-400' }}>
+                          <Chip size="sm" variant="flat" classNames={{ base: 'rounded-lg bg-blue-500/15 border border-blue-500/30 cursor-help', content: 'text-blue-400 text-xs font-medium' }}>
                             {t('ns.scoreFormulaLabel')}
                           </Chip>
-                          <span className="text-xs font-mono text-blue-400">
-                            {formatFormula(c.evaluatorRefs)}
-                          </span>
-                        </span>
+                        </Tooltip>
                       )}
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
                       <Button size="sm" variant="light" onPress={() => openEdit(c)} className="rounded-lg text-zinc-400 hover:text-neon-red hover:bg-neon-red/10">
-                        {t('ns.edit')}
+                        {c.source === 'preset' ? t('ns.duplicateToUser') : t('ns.edit')}
                       </Button>
-                      <Tooltip content={t('ns.delete')} placement="left" delay={300}>
-                        <Button
-                          isIconOnly
-                          size="sm"
-                          variant="light"
-                          onPress={() => remove(c.id)}
-                          className="rounded-lg text-zinc-500 hover:text-neon-red hover:bg-neon-red/10 min-w-8 w-8"
-                          aria-label={t('ns.delete')}
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                          </svg>
-                        </Button>
-                      </Tooltip>
+                      {c.source === 'user' && (
+                        <Tooltip content={t('ns.delete')} placement="left" delay={300}>
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="light"
+                            onPress={() => remove(c)}
+                            className="rounded-lg text-zinc-500 hover:text-neon-red hover:bg-neon-red/10 min-w-8 w-8"
+                            aria-label={t('ns.delete')}
+                          >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                            </svg>
+                          </Button>
+                        </Tooltip>
+                      )}
                     </div>
                   </div>
                 </motion.li>
@@ -542,7 +649,7 @@ export default function NaturalSelector() {
                   onValueChange={(v) => setForm((f) => ({ ...f, id: v }))}
                   size="sm"
                   classNames={inputClass}
-                  isReadOnly={!!editingId}
+                  isReadOnly={!!editingId || editingSource === 'preset'}
                   isInvalid={submitAttempted && !form.id.trim()}
                   errorMessage={submitAttempted && !form.id.trim() ? t('ns.required') : undefined}
                 />
@@ -642,13 +749,24 @@ export default function NaturalSelector() {
               </p>
             )}
           </ModalBody>
-          <ModalFooter>
-            <Button variant="light" onPress={closeModal} className="text-zinc-400">
-              {t('ns.cancel')}
-            </Button>
-            <Button color="primary" onPress={saveFromForm} isDisabled={!isFormValid} className="btn-neon-primary rounded-xl font-medium">
-              {editingId ? t('ns.save') : t('ns.add')}
-            </Button>
+          <ModalFooter className="flex flex-col gap-2">
+            {saveError && (
+              <p className="text-xs text-danger-400 w-full text-left">{saveError}</p>
+            )}
+            <div className="flex gap-2 w-full justify-end">
+              <Button variant="light" onPress={closeModal} className="text-zinc-400" isDisabled={saving}>
+                {t('ns.cancel')}
+              </Button>
+              {editingSource === 'preset' ? (
+                <Button color="primary" onPress={duplicateToUser} isLoading={saving} className="btn-neon-primary rounded-xl font-medium">
+                  {t('ns.duplicateToUser')}
+                </Button>
+              ) : (
+                <Button color="primary" onPress={saveFromForm} isDisabled={!isFormValid || saving} isLoading={saving} className="btn-neon-primary rounded-xl font-medium">
+                  {editingId ? t('ns.save') : t('ns.add')}
+                </Button>
+              )}
+            </div>
           </ModalFooter>
         </ModalContent>
       </Modal>

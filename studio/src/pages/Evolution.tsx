@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -57,6 +57,7 @@ const IconLoop = () => (
 
 type RunStatus = 'running' | 'paused';
 type ScheduleType = 'continuous' | 'scheduled';
+type StatusFilter = 'all' | 'running' | 'paused';
 
 type ActiveRun = {
   id: string;
@@ -88,6 +89,7 @@ export default function Evolution() {
   const [evaluator, setEvaluator] = useState(MOCK_EVALUATORS[0]);
   const [policy, setPolicy] = useState(MOCK_POLICIES[0]);
 
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
   const [runs, setRuns] = useState<ActiveRun[]>(() => [
     {
       id: genId(),
@@ -151,6 +153,13 @@ export default function Evolution() {
   const stopRun = (id: string) => {
     setRuns((prev) => prev.filter((r) => r.id !== id));
   };
+
+  const filteredRuns = useMemo(
+    () => runs.filter((r) => statusFilter === 'all' || r.status === statusFilter),
+    [runs, statusFilter]
+  );
+  const runningCount = runs.filter((r) => r.status === 'running').length;
+  const pausedCount = runs.filter((r) => r.status === 'paused').length;
 
   // Simulate progress for running items (frontend-only demo)
   useEffect(() => {
@@ -226,17 +235,48 @@ export default function Evolution() {
 
       {/* Active evolutions */}
       <div className="relative">
-        <div className="flex items-center gap-2 mb-4">
-          <span className="text-xs font-medium uppercase tracking-widest text-neon-red/90">
-            {t('evolution.manageActive')}
-          </span>
-          <Chip size="sm" variant="flat" classNames={{ base: 'bg-neon-red/10 border border-neon-red/20', content: 'text-neon-red/90' }}>
-            {t('evolution.activeCount', { count: runs.length })}
-          </Chip>
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs font-medium uppercase tracking-widest text-neon-red/90">
+              {t('evolution.manageActive')}
+            </span>
+            <Chip size="sm" variant="flat" classNames={{ base: 'bg-neon-red/10 border border-neon-red/20', content: 'text-neon-red/90' }}>
+              {t('evolution.activeCount', { count: runs.length })}
+            </Chip>
+          </div>
+          {runs.length > 0 && (
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
+              {(
+                [
+                  { value: 'all' as const, label: t('evolution.filterAll'), count: runs.length },
+                  { value: 'running' as const, label: t('evolution.statusRunning'), count: runningCount },
+                  { value: 'paused' as const, label: t('evolution.statusPaused'), count: pausedCount },
+                ] as const
+              ).map(({ value, label, count }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setStatusFilter(value)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
+                    statusFilter === value
+                      ? value === 'all'
+                        ? 'bg-neon-red/20 text-neon-red border border-neon-red/30 shadow-[0_0_12px_-4px_rgba(255,8,68,0.3)]'
+                        : value === 'running'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_12px_-4px_rgba(16,185,129,0.3)]'
+                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_12px_-4px_rgba(245,158,11,0.3)]'
+                      : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
+                  }`}
+                >
+                  <span className="tabular-nums">{label}</span>
+                  <span className="ml-1.5 opacity-80">({count})</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <AnimatePresence mode="popLayout">
-          {runs.length === 0 ? (
+          {filteredRuns.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 8 }}
@@ -244,12 +284,23 @@ export default function Evolution() {
               exit={{ opacity: 0 }}
               className="rounded-2xl border border-dashed border-surface-border bg-surface-elevated/50 py-16 text-center"
             >
-              <p className="text-zinc-500 text-sm mb-1">{t('evolution.noActive')}</p>
-              <p className="text-zinc-600 text-xs">{t('evolution.noActiveHint')}</p>
+              {runs.length === 0 ? (
+                <>
+                  <p className="text-zinc-500 text-sm mb-1">{t('evolution.noActive')}</p>
+                  <p className="text-zinc-600 text-xs">{t('evolution.noActiveHint')}</p>
+                </>
+              ) : (
+                <>
+                  <p className="text-zinc-500 text-sm mb-1">{t('evolution.filterNoMatch')}</p>
+                  <p className="text-zinc-600 text-xs">
+                    {t('evolution.statusRunning')} · {runningCount} · {t('evolution.statusPaused')} · {pausedCount}
+                  </p>
+                </>
+              )}
             </motion.div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {runs.map((run, i) => (
+              {filteredRuns.map((run, i) => (
                 <motion.div
                   key={run.id}
                   layout
