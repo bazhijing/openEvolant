@@ -73,6 +73,8 @@
     "manageActive": "进行中的进化",
     "activeCount": "{{count}} 个进行中",
     "filterAll": "全部",
+    "filterRunning": "运行中",
+    "filterPaused": "已暂停",
     "filterNoMatch": "没有符合当前筛选的进化。",
     "noActive": "暂无进行中的进化",
     "noActiveHint": "请在上方启动一次新的物种进化。",
@@ -89,10 +91,11 @@
     "statusRunning": "运行中",
     "statusPaused": "已暂停",
     "pause": "暂停",
-    "resume": "继续",
+    "resume": "恢复",
     "stop": "停止",
     "view": "查看详情",
     "progress": "进度",
+    "loading": "加载中…",
     "demoOnly": "仅前端演示，未接后端。基因池、评估器与策略为模拟选项。"
   },
   "genes": {

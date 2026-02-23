@@ -16,6 +16,7 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
+  Tooltip,
 } from '@heroui/react';
 
 // Icons
@@ -40,6 +41,11 @@ const IconPlay = () => (
 const IconPlus = () => (
   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+  </svg>
+);
+const IconStop = () => (
+  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
+    <rect x="6" y="6" width="12" height="12" rx="1" />
   </svg>
 );
 
@@ -138,6 +144,16 @@ export default function Evolution() {
     }
   };
 
+  const stopEvolution = async (id: string) => {
+    try {
+      const res = await fetch(`${API_BASE}/api/evolutions/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error();
+      await fetchEvolutions();
+    } catch {
+      // ignore
+    }
+  };
+
   const filteredEvolutions = useMemo(() => {
     if (statusFilter === 'all') return evolutions;
     if (statusFilter === 'running' || statusFilter === 'paused') {
@@ -200,7 +216,7 @@ export default function Evolution() {
         </Card>
       </motion.div>
 
-      {/* 进化任务列表（来自 /api/config/evolutions，running / paused） */}
+      {/* Evolution list from /api/evolutions (running / paused) */}
       <div className="relative">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
@@ -216,8 +232,8 @@ export default function Evolution() {
               {(
                 [
                   { value: 'all' as const, label: t('evolution.filterAll'), count: evolutions.length },
-                  { value: 'running' as const, label: t('evolution.filterRunning', '运行中'), count: evolutions.filter((e) => e.status === 'running').length },
-                  { value: 'paused' as const, label: t('evolution.filterPaused', '已暂停'), count: evolutions.filter((e) => e.status === 'paused').length },
+                  { value: 'running' as const, label: t('evolution.filterRunning'), count: evolutions.filter((e) => e.status === 'running').length },
+                  { value: 'paused' as const, label: t('evolution.filterPaused'), count: evolutions.filter((e) => e.status === 'paused').length },
                 ] as const
               ).map(({ value, label, count }) => (
                 <button
@@ -250,7 +266,7 @@ export default function Evolution() {
               animate={{ opacity: 1 }}
               className="rounded-2xl border border-dashed border-surface-border bg-surface-elevated/50 py-16 text-center"
             >
-              <p className="text-zinc-500 text-sm">{t('genes.loading', '加载中…')}</p>
+              <p className="text-zinc-500 text-sm">{t('evolution.loading')}</p>
             </motion.div>
           ) : loadError ? (
             <motion.div
@@ -362,8 +378,8 @@ export default function Evolution() {
                         }}
                       >
                         {evolution.status === 'running'
-                          ? t('evolution.filterRunning', '运行中')
-                          : t('evolution.filterPaused', '已暂停')}
+                          ? t('evolution.filterRunning')
+                          : t('evolution.filterPaused')}
                       </Chip>
 
                       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
@@ -380,12 +396,12 @@ export default function Evolution() {
                           <span className="font-mono text-zinc-300 truncate max-w-[100px]" title={evolution.genePool}>{evolution.genePool}</span>
                         </div>
                         <div className="flex justify-between">
-                          <span className="text-zinc-500">{t('evolution.progress', '进度')}</span>
+                          <span className="text-zinc-500">{t('evolution.progress')}</span>
                           <span className="font-mono text-zinc-300 tabular-nums">{evolution.progressPercent}%</span>
                         </div>
                       </div>
 
-                      <div className="flex gap-2 pt-0.5 mt-auto">
+                      <div className="flex gap-2 pt-0.5 mt-auto items-center">
                         {evolution.status === 'running' ? (
                           <Button
                             size="sm"
@@ -393,7 +409,7 @@ export default function Evolution() {
                             className="flex-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs"
                             onPress={() => setEvolutionStatus(evolution.id, 'paused')}
                           >
-                            {t('evolution.pause', '暂停')}
+                            {t('evolution.pause')}
                           </Button>
                         ) : (
                           <Button
@@ -403,9 +419,20 @@ export default function Evolution() {
                             startContent={<IconPlay />}
                             onPress={() => setEvolutionStatus(evolution.id, 'running')}
                           >
-                            {t('evolution.resume', '恢复')}
+                            {t('evolution.resume')}
                           </Button>
                         )}
+                        <Tooltip content={t('evolution.stop')} placement="top" delay={300}>
+                          <Button
+                            isIconOnly
+                            size="sm"
+                            variant="flat"
+                            className="min-w-8 w-8 h-8 text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
+                            onPress={() => stopEvolution(evolution.id)}
+                          >
+                            <IconStop />
+                          </Button>
+                        </Tooltip>
                       </div>
                     </CardBody>
                   </Card>
