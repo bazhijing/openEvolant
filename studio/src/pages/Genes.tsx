@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -30,7 +30,9 @@ const IconTrending = () => (
   <svg className="w-4 h-4 text-neon-red/80" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
 );
 
-/** 前端展示用：迭代完的基因组（mock，不接 API） */
+const API_BASE = import.meta.env.DEV ? 'http://127.0.0.1:3000' : '';
+
+/** 前端展示用：基因组（来自 /api/config/genes） */
 type Genome = {
   id: string;
   name: string;
@@ -39,16 +41,8 @@ type Genome = {
   updatedAt: string;
   status: 'stable' | 'evolving' | 'archived';
   geneCount: number;
+  source?: 'preset' | 'user';
 };
-
-const MOCK_GENOMES: Genome[] = [
-  { id: 'g-001', name: 'Agent v1 — Reasoning', generation: 12, score: 0.92, updatedAt: '2025-02-22T10:00:00Z', status: 'stable', geneCount: 24 },
-  { id: 'g-002', name: 'Prompt Optimizer', generation: 8, score: 0.88, updatedAt: '2025-02-21T18:30:00Z', status: 'stable', geneCount: 18 },
-  { id: 'g-003', name: 'Code Gen Pool', generation: 15, score: 0.85, updatedAt: '2025-02-22T09:15:00Z', status: 'evolving', geneCount: 32 },
-  { id: 'g-004', name: 'QA Evaluator Genes', generation: 5, score: 0.79, updatedAt: '2025-02-20T14:00:00Z', status: 'archived', geneCount: 12 },
-  { id: 'g-005', name: 'Summarization v2', generation: 22, score: 0.94, updatedAt: '2025-02-22T11:20:00Z', status: 'stable', geneCount: 28 },
-  { id: 'g-006', name: 'Safety Filter Genes', generation: 3, score: 0.71, updatedAt: '2025-02-19T16:45:00Z', status: 'evolving', geneCount: 8 },
-];
 
 const statusColors: Record<Genome['status'], 'success' | 'warning' | 'default'> = {
   stable: 'success',
@@ -71,9 +65,27 @@ export default function Genes() {
   const { t } = useTranslation();
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<Genome['status'] | 'all'>('all');
+  const [genomes, setGenomes] = useState<Genome[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setLoading(true);
+    setLoadError(null);
+    fetch(`${API_BASE}/api/config/genes`)
+      .then((res) => {
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json();
+      })
+      .then((data: { genomes?: Genome[] }) => {
+        setGenomes(Array.isArray(data.genomes) ? data.genomes : []);
+      })
+      .catch((e) => setLoadError(e?.message ?? 'Failed to fetch'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
-    let list = MOCK_GENOMES;
+    let list = genomes;
     if (statusFilter !== 'all') {
       list = list.filter((g) => g.status === statusFilter);
     }
@@ -86,7 +98,11 @@ export default function Genes() {
       );
     }
     return list;
-  }, [search, statusFilter]);
+  }, [genomes, search, statusFilter]);
+
+  const avgScore = genomes.length > 0
+    ? (genomes.reduce((a, g) => a + g.score, 0) / genomes.length).toFixed(2)
+    : '0.00';
 
   return (
     <motion.div
@@ -107,11 +123,11 @@ export default function Genes() {
         <div className="flex items-center gap-6 text-zinc-400 text-sm">
           <span className="flex items-center gap-1.5">
             <IconSparkles />
-            {t('genes.totalGenomes', { count: MOCK_GENOMES.length })}
+            {t('genes.totalGenomes', { count: genomes.length })}
           </span>
           <span className="flex items-center gap-1.5">
             <IconTrending />
-            {t('genes.avgScore', { score: (MOCK_GENOMES.reduce((a, g) => a + g.score, 0) / MOCK_GENOMES.length).toFixed(2) })}
+            {t('genes.avgScore', { score: avgScore })}
           </span>
         </div>
         <div className="flex-1 min-w-[200px] max-w-sm">
@@ -145,7 +161,25 @@ export default function Genes() {
 
       {/* 基因组卡片网格 */}
       <AnimatePresence mode="wait">
-        {filtered.length === 0 ? (
+        {loading ? (
+          <motion.div
+            key="loading"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-2xl border border-surface-border border-dashed bg-surface-elevated/50 py-16 text-center"
+          >
+            <p className="text-zinc-500 text-sm">{t('genes.loading', '加载中…')}</p>
+          </motion.div>
+        ) : loadError ? (
+          <motion.div
+            key="error"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="rounded-2xl border border-red-500/30 bg-surface-elevated/50 py-16 text-center"
+          >
+            <p className="text-red-400 text-sm">{loadError}</p>
+          </motion.div>
+        ) : filtered.length === 0 ? (
           <motion.div
             key="empty"
             initial={{ opacity: 0, y: 8 }}
@@ -221,14 +255,21 @@ export default function Genes() {
                         <IconCalendar />
                         {formatDate(genome.updatedAt)}
                       </span>
-                      <Chip
-                        size="sm"
-                        color={statusColors[genome.status]}
-                        variant="flat"
-                        className="font-medium"
-                      >
-                        {t(`genes.status.${genome.status}`)}
-                      </Chip>
+                      <div className="flex items-center gap-1.5">
+                        {genome.source && (
+                          <Chip size="sm" variant="flat" className="font-medium text-zinc-400">
+                            {genome.source === 'preset' ? t('genes.source.preset', '预设') : t('genes.source.user', '用户')}
+                          </Chip>
+                        )}
+                        <Chip
+                          size="sm"
+                          color={statusColors[genome.status]}
+                          variant="flat"
+                          className="font-medium"
+                        >
+                          {t(`genes.status.${genome.status}`)}
+                        </Chip>
+                      </div>
                     </div>
                   </CardBody>
                 </Card>

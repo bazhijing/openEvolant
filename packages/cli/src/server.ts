@@ -8,6 +8,8 @@ import {
   registerLlmRoutes,
   registerEvaluatorRoutes,
   registerNsRoutes,
+  registerGenesRoutes,
+  registerEvolutionRoutes,
 } from './routes/index.js';
 
 /**
@@ -28,7 +30,7 @@ export function createApp(ctx: ServerContext): express.Application {
   if (ctx.apiOnly) {
     app.use((_req, res, next) => {
       res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173');
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PATCH, OPTIONS');
       res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
       if (_req.method === 'OPTIONS') return res.sendStatus(204);
       next();
@@ -44,6 +46,8 @@ export function createApp(ctx: ServerContext): express.Application {
   registerLlmRoutes(app, ctx);
   registerEvaluatorRoutes(app, ctx);
   registerNsRoutes(app, ctx);
+  registerGenesRoutes(app, ctx);
+  registerEvolutionRoutes(app, ctx);
 
   return app;
 }

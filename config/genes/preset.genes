@@ -1,0 +1,39 @@
+{
+  "specVersion": "0.1",
+  "id": "preset-default",
+  "createdAt": "2025-02-22T00:00:00Z",
+  "updatedAt": "2025-02-22T00:00:00Z",
+  "taskIntent": {
+    "id": "intent-preset",
+    "name": "预设任务意图",
+    "skillId": null,
+    "skillSource": "new"
+  },
+  "population": [
+    {
+      "genId": "gen-seed-preset",
+      "version": 1,
+      "fitness": null,
+      "content": {
+        "promptFragments": ["你是一个通用助手。", "根据用户意图完成任务并给出清晰回复。"],
+        "decisionSequence": [],
+        "toolCallPreference": {},
+        "metadata": {}
+      },
+      "parentIds": [],
+      "origin": "seed",
+      "createdAt": "2025-02-22T00:00:00Z"
+    }
+  ],
+  "currentBestGenId": "gen-seed-preset",
+  "history": [
+    {
+      "iteration": 0,
+      "at": "2025-02-22T00:00:00Z",
+      "event": "init",
+      "genIds": ["gen-seed-preset"],
+      "scores": {},
+      "summary": "预设种子种群初始化"
+    }
+  ]
+}

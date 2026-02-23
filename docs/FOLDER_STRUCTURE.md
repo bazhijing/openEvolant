@@ -101,6 +101,7 @@ Evolant Studio：v0.1 唯一入口，**TypeScript** Web GUI。构建产物（如
 | 路径 | 说明 |
 |------|------|
 | `config/evaluator/` | 示例 `.evaluator` 单条件配置 |
+| `config/genes/` | 预设 `.genes` 基因池（如 preset.genes，可复制到 openevolant/data/genes/ 或 openevolant/genes/ 作为起点） |
 | `config/ns/` | 示例 `.ns` 自然选择配置（可选） |
 | `config/llm/` | 示例 `.llm` 配置（首次运行可被复制到 openevolant/config/llm/） |
 

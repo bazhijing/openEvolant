@@ -16,7 +16,6 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
-  Progress,
 } from '@heroui/react';
 
 // Icons
@@ -38,48 +37,35 @@ const IconMore = () => (
 const IconPlay = () => (
   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z" /></svg>
 );
-const IconPause = () => (
-  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" /></svg>
-);
-const IconStop = () => (
-  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z" /></svg>
-);
-const IconClock = () => (
-  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-  </svg>
-);
-const IconLoop = () => (
-  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+const IconPlus = () => (
+  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
   </svg>
 );
 
-type RunStatus = 'running' | 'paused';
-type ScheduleType = 'continuous' | 'scheduled';
+const API_BASE = import.meta.env.DEV ? 'http://127.0.0.1:3000' : '';
+
 type StatusFilter = 'all' | 'running' | 'paused';
 
-type ActiveRun = {
+/** 进化任务（来自 /api/evolutions，正在运行或暂停的 .evolution 文件） */
+type Evolution = {
   id: string;
   speciesName: string;
   genePool: string;
   evaluator: string;
   policy: string;
-  status: RunStatus;
-  scheduleType?: ScheduleType;
+  status: 'running' | 'paused';
+  scheduleType?: 'continuous' | 'scheduled';
   generation: number;
   bestScore: number;
   progressPercent: number;
   startedAt: string;
+  updatedAt: string;
 };
 
 const MOCK_POOLS = ['default.genes', 'reasoning-pool.genes', 'code-gen.genes'];
 const MOCK_EVALUATORS = ['AI Quality', 'Cost + Latency', 'Accuracy'];
 const MOCK_POLICIES = ['balanced.ns', 'aggressive.ns', 'conservative.ns'];
-
-function genId(): string {
-  return 'ev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
-}
 
 export default function Evolution() {
   const { t } = useTranslation();
@@ -89,95 +75,76 @@ export default function Evolution() {
   const [evaluator, setEvaluator] = useState(MOCK_EVALUATORS[0]);
   const [policy, setPolicy] = useState(MOCK_POLICIES[0]);
 
+  const [evolutions, setEvolutions] = useState<Evolution[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [runs, setRuns] = useState<ActiveRun[]>(() => [
-    {
-      id: genId(),
-      speciesName: 'Agent Reasoning v2',
-      genePool: 'reasoning-pool.genes',
-      evaluator: 'AI Quality',
-      policy: 'balanced.ns',
-      status: 'running',
-      scheduleType: 'continuous',
-      generation: 12,
-      bestScore: 0.87,
-      progressPercent: 42,
-      startedAt: new Date(Date.now() - 3600000).toISOString(),
-    },
-    {
-      id: genId(),
-      speciesName: 'Code Gen Pool',
-      genePool: 'code-gen.genes',
-      evaluator: 'Cost + Latency',
-      policy: 'aggressive.ns',
-      status: 'paused',
-      scheduleType: 'scheduled',
-      generation: 8,
-      bestScore: 0.72,
-      progressPercent: 28,
-      startedAt: new Date(Date.now() - 7200000).toISOString(),
-    },
-  ]);
 
-  const handleStart = () => {
-    const name = speciesName.trim() || t('evolution.newEvolution');
-    setRuns((prev) => [
-      {
-        id: genId(),
-        speciesName: name,
-        genePool,
-        evaluator,
-        policy,
-        status: 'running',
-        scheduleType: 'continuous',
-        generation: 0,
-        bestScore: 0,
-        progressPercent: 0,
-        startedAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
-    setSpeciesName('');
-    setGenePool(MOCK_POOLS[0]);
-    setEvaluator(MOCK_EVALUATORS[0]);
-    setPolicy(MOCK_POLICIES[0]);
-    setModalOpen(false);
+  const fetchEvolutions = () => {
+    return fetch(`${API_BASE}/api/evolutions`)
+      .then((res) => {
+        if (!res.ok) throw new Error(res.statusText);
+        return res.json();
+      })
+      .then((data: { evolutions?: Evolution[] }) => {
+        setEvolutions(Array.isArray(data.evolutions) ? data.evolutions : []);
+      });
   };
 
-  const togglePause = (id: string) => {
-    setRuns((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, status: r.status === 'running' ? 'paused' : 'running' } : r))
-    );
-  };
-
-  const stopRun = (id: string) => {
-    setRuns((prev) => prev.filter((r) => r.id !== id));
-  };
-
-  const filteredRuns = useMemo(
-    () => runs.filter((r) => statusFilter === 'all' || r.status === statusFilter),
-    [runs, statusFilter]
-  );
-  const runningCount = runs.filter((r) => r.status === 'running').length;
-  const pausedCount = runs.filter((r) => r.status === 'paused').length;
-
-  // Simulate progress for running items (frontend-only demo)
   useEffect(() => {
-    const interval = setInterval(() => {
-      setRuns((prev) =>
-        prev.map((r) => {
-          if (r.status !== 'running') return r;
-          return {
-            ...r,
-            generation: r.generation + (Math.random() > 0.6 ? 1 : 0),
-            bestScore: Math.min(0.98, r.bestScore + Math.random() * 0.015),
-            progressPercent: Math.min(98, r.progressPercent + (Math.random() > 0.5 ? 1 : 0)),
-          };
-        })
-      );
-    }, 2500);
-    return () => clearInterval(interval);
+    setLoading(true);
+    setLoadError(null);
+    fetchEvolutions()
+      .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : 'Failed to fetch'))
+      .finally(() => setLoading(false));
   }, []);
+
+  const handleStart = async () => {
+    try {
+      const res = await fetch(`${API_BASE}/api/evolutions`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          speciesName: speciesName.trim() || undefined,
+          genePool,
+          evaluator,
+          policy,
+        }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error || res.statusText);
+      setSpeciesName('');
+      setGenePool(MOCK_POOLS[0]);
+      setEvaluator(MOCK_EVALUATORS[0]);
+      setPolicy(MOCK_POLICIES[0]);
+      setModalOpen(false);
+      await fetchEvolutions();
+    } catch (e: unknown) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to create evolution');
+    }
+  };
+
+  const setEvolutionStatus = async (id: string, status: 'running' | 'paused') => {
+    try {
+      const res = await fetch(`${API_BASE}/api/evolutions/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      });
+      if (!res.ok) throw new Error();
+      await fetchEvolutions();
+    } catch {
+      // ignore
+    }
+  };
+
+  const filteredEvolutions = useMemo(() => {
+    if (statusFilter === 'all') return evolutions;
+    if (statusFilter === 'running' || statusFilter === 'paused') {
+      return evolutions.filter((e) => e.status === statusFilter);
+    }
+    return evolutions;
+  }, [evolutions, statusFilter]);
 
   return (
     <motion.div
@@ -233,7 +200,7 @@ export default function Evolution() {
         </Card>
       </motion.div>
 
-      {/* Active evolutions */}
+      {/* 进化任务列表（来自 /api/config/evolutions，running / paused） */}
       <div className="relative">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
           <div className="flex items-center gap-2">
@@ -241,29 +208,29 @@ export default function Evolution() {
               {t('evolution.manageActive')}
             </span>
             <Chip size="sm" variant="flat" classNames={{ base: 'bg-neon-red/10 border border-neon-red/20', content: 'text-neon-red/90' }}>
-              {t('evolution.activeCount', { count: runs.length })}
+              {t('evolution.activeCount', { count: evolutions.length })}
             </Chip>
           </div>
-          {runs.length > 0 && (
+          {evolutions.length > 0 && (
             <div className="flex items-center gap-1 p-1 rounded-xl bg-white/5 border border-white/10">
               {(
                 [
-                  { value: 'all' as const, label: t('evolution.filterAll'), count: runs.length },
-                  { value: 'running' as const, label: t('evolution.statusRunning'), count: runningCount },
-                  { value: 'paused' as const, label: t('evolution.statusPaused'), count: pausedCount },
+                  { value: 'all' as const, label: t('evolution.filterAll'), count: evolutions.length },
+                  { value: 'running' as const, label: t('evolution.filterRunning', '运行中'), count: evolutions.filter((e) => e.status === 'running').length },
+                  { value: 'paused' as const, label: t('evolution.filterPaused', '已暂停'), count: evolutions.filter((e) => e.status === 'paused').length },
                 ] as const
               ).map(({ value, label, count }) => (
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setStatusFilter(value)}
+                  onClick={() => setStatusFilter(value as StatusFilter)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
                     statusFilter === value
                       ? value === 'all'
                         ? 'bg-neon-red/20 text-neon-red border border-neon-red/30 shadow-[0_0_12px_-4px_rgba(255,8,68,0.3)]'
                         : value === 'running'
-                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-[0_0_12px_-4px_rgba(16,185,129,0.3)]'
-                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30 shadow-[0_0_12px_-4px_rgba(245,158,11,0.3)]'
+                          ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
+                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                       : 'text-zinc-400 hover:text-zinc-200 border border-transparent'
                   }`}
                 >
@@ -276,33 +243,60 @@ export default function Evolution() {
         </div>
 
         <AnimatePresence mode="popLayout">
-          {filteredRuns.length === 0 ? (
+          {loading ? (
+            <motion.div
+              key="loading"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="rounded-2xl border border-dashed border-surface-border bg-surface-elevated/50 py-16 text-center"
+            >
+              <p className="text-zinc-500 text-sm">{t('genes.loading', '加载中…')}</p>
+            </motion.div>
+          ) : loadError ? (
+            <motion.div
+              key="error"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="rounded-2xl border border-red-500/30 bg-surface-elevated/50 py-16 text-center"
+            >
+              <p className="text-red-400 text-sm">{loadError}</p>
+            </motion.div>
+          ) : filteredEvolutions.length === 0 ? (
             <motion.div
               key="empty"
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              className="rounded-2xl border border-dashed border-surface-border bg-surface-elevated/50 py-16 text-center"
+              className="rounded-2xl"
             >
-              {runs.length === 0 ? (
-                <>
-                  <p className="text-zinc-500 text-sm mb-1">{t('evolution.noActive')}</p>
-                  <p className="text-zinc-600 text-xs">{t('evolution.noActiveHint')}</p>
-                </>
-              ) : (
-                <>
-                  <p className="text-zinc-500 text-sm mb-1">{t('evolution.filterNoMatch')}</p>
-                  <p className="text-zinc-600 text-xs">
-                    {t('evolution.statusRunning')} · {runningCount} · {t('evolution.statusPaused')} · {pausedCount}
-                  </p>
-                </>
-              )}
+              <Card
+                isPressable
+                onPress={() => setModalOpen(true)}
+                className="h-full min-h-[200px] border-2 border-blue-400/60 bg-surface-elevated/80 shadow-[0_0_24px_-4px_rgba(59,130,246,0.4)] hover:border-blue-400 hover:shadow-[0_0_32px_-4px_rgba(59,130,246,0.5)] transition-all duration-300 cursor-pointer"
+              >
+                <CardBody className="flex flex-col items-center justify-center gap-3 py-12">
+                  <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-blue-500/20 border border-blue-400/40 text-blue-400">
+                    <IconPlus />
+                  </div>
+                  <p className="text-zinc-300 text-sm font-medium">{t('evolution.noActive')}</p>
+                  <p className="text-zinc-500 text-xs text-center max-w-[260px]">{t('evolution.noActiveHint')}</p>
+                  <Button
+                    color="primary"
+                    variant="flat"
+                    className="bg-blue-500/20 text-blue-400 border border-blue-400/40 shadow-[0_0_12px_-2px_rgba(59,130,246,0.3)]"
+                    startContent={<IconRocket />}
+                    onPress={() => setModalOpen(true)}
+                  >
+                    {t('evolution.start')} — {t('evolution.newEvolution')}
+                  </Button>
+                </CardBody>
+              </Card>
             </motion.div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredRuns.map((run, i) => (
+              {filteredEvolutions.map((evolution, i) => (
                 <motion.div
-                  key={run.id}
+                  key={evolution.id}
                   layout
                   initial={{ opacity: 0, scale: 0.96 }}
                   animate={{ opacity: 1, scale: 1 }}
@@ -312,136 +306,106 @@ export default function Evolution() {
                 >
                   <Card
                     className={`h-full bg-surface-elevated/80 backdrop-blur-sm border overflow-hidden transition-all duration-300 group hover:shadow-lg ${
-                      run.status === 'running'
+                      evolution.status === 'running'
                         ? 'border-emerald-500/30 hover:border-emerald-500/50 shadow-[0_0_24px_-8px_rgba(16,185,129,0.25)]'
-                        : 'border-surface-border hover:border-amber-500/30'
+                        : 'border-surface-border hover:border-neon-red/20'
                     }`}
                   >
-                    {/* Top accent bar */}
                     <div
                       className={`h-0.5 w-full ${
-                        run.status === 'running'
+                        evolution.status === 'running'
                           ? 'bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent'
-                          : 'bg-gradient-to-r from-transparent via-amber-500/50 to-transparent'
+                          : 'bg-gradient-to-r from-transparent via-neon-red/40 to-transparent'
                       }`}
                     />
                     <CardBody className="p-4 flex flex-col gap-3">
-                      {/* Header: status dot + name + schedule badge + menu */}
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2 min-w-0 flex-1">
                           <span
                             className={`w-2 h-2 rounded-full shrink-0 ${
-                              run.status === 'running'
-                                ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse'
+                              evolution.status === 'running'
+                                ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)]'
                                 : 'bg-amber-500'
                             }`}
                           />
-                          <h3 className="text-sm font-semibold text-white truncate">{run.speciesName}</h3>
+                          <h3 className="text-sm font-semibold text-white truncate">{evolution.speciesName}</h3>
                         </div>
-                        <div className="flex items-center gap-1 shrink-0">
-                          {run.scheduleType && (
-                            <Chip
+                        <Dropdown placement="bottom-end">
+                          <DropdownTrigger>
+                            <Button
+                              isIconOnly
                               size="sm"
-                              variant="flat"
-                              startContent={run.scheduleType === 'continuous' ? <IconLoop /> : <IconClock />}
-                              classNames={{
-                                base: 'h-6 min-w-0 px-1.5 bg-white/5 border border-white/10',
-                                content: 'text-[10px] text-zinc-400',
-                              }}
+                              variant="light"
+                              className="min-w-6 w-6 h-6 opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-200 transition-opacity"
                             >
-                              {run.scheduleType === 'continuous' ? 'Continuous' : 'Scheduled'}
-                            </Chip>
-                          )}
-                          <Dropdown placement="bottom-end">
-                            <DropdownTrigger>
-                              <Button
-                                isIconOnly
-                                size="sm"
-                                variant="light"
-                                className="min-w-6 w-6 h-6 opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-200 transition-opacity"
-                              >
-                                <IconMore />
-                              </Button>
-                            </DropdownTrigger>
-                            <DropdownMenu aria-label="Actions">
-                              <DropdownItem key="view">{t('evolution.view')}</DropdownItem>
-                              <DropdownItem key="pause" onPress={() => togglePause(run.id)}>
-                                {run.status === 'running' ? t('evolution.pause') : t('evolution.resume')}
-                              </DropdownItem>
-                              <DropdownItem key="stop" className="text-danger" onPress={() => stopRun(run.id)}>
-                                {t('evolution.stop')}
-                              </DropdownItem>
-                            </DropdownMenu>
-                          </Dropdown>
-                        </div>
+                              <IconMore />
+                            </Button>
+                          </DropdownTrigger>
+                          <DropdownMenu aria-label="Actions">
+                            <DropdownItem key="view">{t('evolution.view')}</DropdownItem>
+                          </DropdownMenu>
+                        </Dropdown>
                       </div>
 
-                      {/* Status chip */}
                       <Chip
                         size="sm"
                         variant="flat"
                         classNames={{
                           base:
-                            run.status === 'running'
+                            evolution.status === 'running'
                               ? 'bg-emerald-500/15 border border-emerald-500/25 w-fit'
                               : 'bg-amber-500/15 border border-amber-500/25 w-fit',
-                          content: run.status === 'running' ? 'text-emerald-400 text-xs' : 'text-amber-400 text-xs',
+                          content:
+                            evolution.status === 'running'
+                              ? 'text-emerald-400 text-xs'
+                              : 'text-amber-400 text-xs',
                         }}
                       >
-                        {run.status === 'running' ? t('evolution.statusRunning') : t('evolution.statusPaused')}
+                        {evolution.status === 'running'
+                          ? t('evolution.filterRunning', '运行中')
+                          : t('evolution.filterPaused', '已暂停')}
                       </Chip>
 
-                      {/* Metrics grid */}
                       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
                         <div className="flex justify-between">
                           <span className="text-zinc-500">{t('evolution.generation')}</span>
-                          <span className="font-mono text-zinc-300 tabular-nums">{run.generation}</span>
+                          <span className="font-mono text-zinc-300 tabular-nums">{evolution.generation}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-zinc-500">{t('evolution.bestScore')}</span>
-                          <span className="font-mono text-neon-red tabular-nums">{run.bestScore.toFixed(2)}</span>
+                          <span className="font-mono text-neon-red tabular-nums">{evolution.bestScore.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-zinc-500">{t('evolution.genePool')}</span>
+                          <span className="font-mono text-zinc-300 truncate max-w-[100px]" title={evolution.genePool}>{evolution.genePool}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-zinc-500">{t('evolution.progress', '进度')}</span>
+                          <span className="font-mono text-zinc-300 tabular-nums">{evolution.progressPercent}%</span>
                         </div>
                       </div>
 
-                      {/* Progress */}
-                      <div>
-                        <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
-                          <span>{t('evolution.progress')}</span>
-                          <span className="font-mono tabular-nums">{run.progressPercent}%</span>
-                        </div>
-                        <Progress
-                          size="sm"
-                          value={run.progressPercent}
-                          classNames={{
-                            base: 'h-1.5 rounded-full bg-white/5',
-                            indicator:
-                              run.status === 'running'
-                                ? 'bg-gradient-to-r from-emerald-500/80 to-neon-red rounded-full'
-                                : 'bg-gradient-to-r from-amber-500/60 to-amber-500/40 rounded-full',
-                          }}
-                        />
-                      </div>
-
-                      {/* Actions */}
                       <div className="flex gap-2 pt-0.5 mt-auto">
-                        <Button
-                          size="sm"
-                          variant="flat"
-                          className="flex-1 bg-white/5 text-zinc-300 hover:bg-neon-red/10 hover:text-neon-red text-xs"
-                          startContent={run.status === 'running' ? <IconPause /> : <IconPlay />}
-                          onPress={() => togglePause(run.id)}
-                        >
-                          {run.status === 'running' ? t('evolution.pause') : t('evolution.resume')}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="light"
-                          className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 text-xs min-w-0 px-2"
-                          startContent={<IconStop />}
-                          onPress={() => stopRun(run.id)}
-                        >
-                          {t('evolution.stop')}
-                        </Button>
+                        {evolution.status === 'running' ? (
+                          <Button
+                            size="sm"
+                            variant="flat"
+                            className="flex-1 bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 text-xs"
+                            onPress={() => setEvolutionStatus(evolution.id, 'paused')}
+                          >
+                            {t('evolution.pause', '暂停')}
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="flat"
+                            className="flex-1 bg-white/5 text-zinc-300 hover:bg-neon-red/10 hover:text-neon-red text-xs"
+                            startContent={<IconPlay />}
+                            onPress={() => setEvolutionStatus(evolution.id, 'running')}
+                          >
+                            {t('evolution.resume', '恢复')}
+                          </Button>
+                        )}
                       </div>
                     </CardBody>
                   </Card>
