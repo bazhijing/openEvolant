@@ -69,17 +69,16 @@ type Evolution = {
   updatedAt: string;
 };
 
-const MOCK_POOLS = ['default.genes', 'reasoning-pool.genes', 'code-gen.genes'];
-const MOCK_EVALUATORS = ['AI Quality', 'Cost + Latency', 'Accuracy'];
-const MOCK_POLICIES = ['balanced.ns', 'aggressive.ns', 'conservative.ns'];
+const DEFAULT_GENE_POOL = 'default.genes';
+const SELECTION_POLICY = '自然选择';
 
 export default function Evolution() {
   const { t } = useTranslation();
   const [modalOpen, setModalOpen] = useState(false);
   const [speciesName, setSpeciesName] = useState('');
-  const [genePool, setGenePool] = useState(MOCK_POOLS[0]);
-  const [evaluator, setEvaluator] = useState(MOCK_EVALUATORS[0]);
-  const [policy, setPolicy] = useState(MOCK_POLICIES[0]);
+  const [budgetUsd, setBudgetUsd] = useState('');
+  const [timeLimitMinutes, setTimeLimitMinutes] = useState('');
+  const [iterationCount, setIterationCount] = useState('');
 
   const [evolutions, setEvolutions] = useState<Evolution[]>([]);
   const [loading, setLoading] = useState(true);
@@ -113,16 +112,18 @@ export default function Evolution() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           speciesName: speciesName.trim() || undefined,
-          genePool,
-          evaluator,
-          policy,
+          genePool: DEFAULT_GENE_POOL,
+          policy: SELECTION_POLICY,
+          budgetUsd: budgetUsd.trim() ? Number(budgetUsd) : undefined,
+          timeLimitMinutes: timeLimitMinutes.trim() ? Number(timeLimitMinutes) : undefined,
+          iterationCount: iterationCount.trim() ? Number(iterationCount) : undefined,
         }),
       });
       if (!res.ok) throw new Error((await res.json()).error || res.statusText);
       setSpeciesName('');
-      setGenePool(MOCK_POOLS[0]);
-      setEvaluator(MOCK_EVALUATORS[0]);
-      setPolicy(MOCK_POLICIES[0]);
+      setBudgetUsd('');
+      setTimeLimitMinutes('');
+      setIterationCount('');
       setModalOpen(false);
       await fetchEvolutions();
     } catch (e: unknown) {
@@ -201,7 +202,7 @@ export default function Evolution() {
             <div className="flex-1 min-w-0">
               <h2 className="text-lg font-semibold text-white mb-1">{t('evolution.launchNew')}</h2>
               <p className="text-zinc-400 text-sm">
-                {t('evolution.newEvolution')} — {t('evolution.genePool')}, {t('evolution.evaluator')}, {t('evolution.policy')}.
+                {t('evolution.newEvolution')} — {t('evolution.newEvolutionSummary')}
               </p>
             </div>
             <Button
@@ -468,49 +469,70 @@ export default function Evolution() {
                 label: 'text-zinc-400',
               }}
             />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Input
+                label={t('evolution.genePool')}
+                value={DEFAULT_GENE_POOL}
+                isReadOnly
+                description={t('evolution.genePoolUnavailable')}
+                classNames={{
+                  inputWrapper: 'rounded-xl bg-white/5 border border-white/10 opacity-80',
+                  input: 'text-zinc-400',
+                  label: 'text-zinc-500',
+                }}
+              />
+              <Input
+                label={t('evolution.policy')}
+                value={t('evolution.policyNaturalSelection')}
+                isReadOnly
+                classNames={{
+                  inputWrapper: 'rounded-xl bg-white/5 border border-white/10 opacity-80',
+                  input: 'text-zinc-400',
+                  label: 'text-zinc-500',
+                }}
+              />
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1.5">{t('evolution.genePool')}</label>
-                <select
-                  className="w-full rounded-xl bg-white/5 border border-white/10 hover:border-neon-red/30 focus:border-neon-red focus:outline-none focus:ring-1 focus:ring-neon-red/30 px-3 py-2.5 text-sm text-zinc-200"
-                  value={genePool}
-                  onChange={(e) => setGenePool(e.target.value)}
-                >
-                  {MOCK_POOLS.map((p) => (
-                    <option key={p} value={p} className="bg-surface-elevated text-zinc-200">
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1.5">{t('evolution.evaluator')}</label>
-                <select
-                  className="w-full rounded-xl bg-white/5 border border-white/10 hover:border-neon-red/30 focus:border-neon-red focus:outline-none focus:ring-1 focus:ring-neon-red/30 px-3 py-2.5 text-sm text-zinc-200"
-                  value={evaluator}
-                  onChange={(e) => setEvaluator(e.target.value)}
-                >
-                  {MOCK_EVALUATORS.map((e) => (
-                    <option key={e} value={e} className="bg-surface-elevated text-zinc-200">
-                      {e}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-zinc-500 mb-1.5">{t('evolution.policy')}</label>
-                <select
-                  className="w-full rounded-xl bg-white/5 border border-white/10 hover:border-neon-red/30 focus:border-neon-red focus:outline-none focus:ring-1 focus:ring-neon-red/30 px-3 py-2.5 text-sm text-zinc-200"
-                  value={policy}
-                  onChange={(e) => setPolicy(e.target.value)}
-                >
-                  {MOCK_POLICIES.map((p) => (
-                    <option key={p} value={p} className="bg-surface-elevated text-zinc-200">
-                      {p}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <Input
+                label={t('evolution.budgetUsd')}
+                placeholder={t('evolution.budgetUsdPlaceholder')}
+                type="number"
+                min={0}
+                step={0.01}
+                value={budgetUsd}
+                onValueChange={setBudgetUsd}
+                classNames={{
+                  inputWrapper: 'rounded-xl bg-white/5 border border-white/10 hover:border-neon-red/30 focus-within:border-neon-red',
+                  input: 'text-zinc-200',
+                  label: 'text-zinc-400',
+                }}
+              />
+              <Input
+                label={t('evolution.timeLimitMinutes')}
+                placeholder={t('evolution.timeLimitPlaceholder')}
+                type="number"
+                min={1}
+                value={timeLimitMinutes}
+                onValueChange={setTimeLimitMinutes}
+                classNames={{
+                  inputWrapper: 'rounded-xl bg-white/5 border border-white/10 hover:border-neon-red/30 focus-within:border-neon-red',
+                  input: 'text-zinc-200',
+                  label: 'text-zinc-400',
+                }}
+              />
+              <Input
+                label={t('evolution.iterationCount')}
+                placeholder={t('evolution.iterationCountPlaceholder')}
+                type="number"
+                min={1}
+                value={iterationCount}
+                onValueChange={setIterationCount}
+                classNames={{
+                  inputWrapper: 'rounded-xl bg-white/5 border border-white/10 hover:border-neon-red/30 focus-within:border-neon-red',
+                  input: 'text-zinc-200',
+                  label: 'text-zinc-400',
+                }}
+              />
             </div>
             <p className="text-[11px] text-zinc-500">
               {t('evolution.demoOnly')}

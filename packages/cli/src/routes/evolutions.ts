@@ -12,6 +12,12 @@ export interface EvolutionFile {
   genePool: string;
   evaluator: string;
   policy: string;
+  /** 预算 USD */
+  budgetUsd?: number;
+  /** 时间限制（分钟） */
+  timeLimitMinutes?: number;
+  /** 迭代轮数 */
+  iterationCount?: number;
   /** running | paused，v1 仅此两种 */
   status: 'running' | 'paused';
   scheduleType?: 'continuous' | 'scheduled';
@@ -121,11 +127,13 @@ export function registerEvolutionRoutes(
   });
 
   app.post('/api/evolutions', (req: Request, res: Response) => {
-    const body = req.body as Partial<EvolutionFile>;
+    const body = req.body as Partial<EvolutionFile> & { budgetUsd?: number; timeLimitMinutes?: number; iterationCount?: number };
     const speciesName = typeof body?.speciesName === 'string' ? body.speciesName.trim() : '';
     const genePool = typeof body?.genePool === 'string' ? body.genePool : 'default.genes';
-    const evaluator = typeof body?.evaluator === 'string' ? body.evaluator : 'AI Quality';
-    const policy = typeof body?.policy === 'string' ? body.policy : 'balanced.ns';
+    const policy = typeof body?.policy === 'string' ? body.policy : '自然选择';
+    const budgetUsd = typeof body?.budgetUsd === 'number' && body.budgetUsd >= 0 ? body.budgetUsd : undefined;
+    const timeLimitMinutes = typeof body?.timeLimitMinutes === 'number' && body.timeLimitMinutes >= 1 ? body.timeLimitMinutes : undefined;
+    const iterationCount = typeof body?.iterationCount === 'number' && body.iterationCount >= 1 ? body.iterationCount : undefined;
     const id = 'ev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
     const now = new Date().toISOString();
     const evolution: EvolutionFile = {
@@ -133,8 +141,11 @@ export function registerEvolutionRoutes(
       id,
       speciesName: speciesName || id,
       genePool,
-      evaluator,
+      evaluator: '', // 前端已移除选择，由 runner 使用默认
       policy,
+      budgetUsd,
+      timeLimitMinutes,
+      iterationCount,
       status: 'running',
       scheduleType: 'continuous',
       generation: 0,
@@ -155,8 +166,11 @@ export function registerEvolutionRoutes(
           id,
           speciesName: evolution.speciesName,
           genePool,
-          evaluator,
+          evaluator: evolution.evaluator,
           policy,
+          budgetUsd: evolution.budgetUsd,
+          timeLimitMinutes: evolution.timeLimitMinutes,
+          iterationCount: evolution.iterationCount,
         });
       } catch {
         // 如果 manager 尚未初始化，静默忽略以保证 API 不被阻塞
@@ -207,124 +221,14 @@ export function registerEvolutionRoutes(
         res.status(404).json({ error: 'Evolution not found' });
         return;
       }
-      fs.unlinkSync(filePath);
-      res.status(204).send();
-    } catch (e) {
-      res.status(500).json({ error: String(e) });
-    }
-  });
-
-  // 兼容旧路径 /api/config/evolutions
-  app.get('/api/config/evolutions', (_req: Request, res: Response) => {
-    try {
-      res.json({ evolutions: listEvolutions(ctx) });
-    } catch (e) {
-      res.status(500).json({ error: String(e) });
-    }
-  });
-
-  app.patch('/api/config/evolutions/:id', (req: Request, res: Response) => {
-    const id = req.params.id;
-    const body = req.body as { status?: 'running' | 'paused' };
-    if (!id || typeof body?.status !== 'string' || !['running', 'paused'].includes(body.status)) {
-      res.status(400).json({ error: 'Bad request: status must be "running" or "paused"' });
-      return;
-    }
-    try {
-      const fromData = path.join(ctx.dataDir, 'evolutions');
-      const fromRoot = path.join(ctx.rootDir, 'evolutions');
-      let found = false;
-      for (const base of [fromData, fromRoot]) {
-        if (!fs.existsSync(base)) continue;
-        const files = fs.readdirSync(base).filter((f) => f.endsWith('.evolution'));
-        for (const file of files) {
-          const filePath = path.join(base, file);
-          const raw = fs.readFileSync(filePath, 'utf-8');
-          const spec = JSON.parse(raw) as EvolutionFile;
-          if (spec?.id !== id) continue;
-          found = true;
-          const updated: EvolutionFile = {
-            ...spec,
-            status: body.status as 'running' | 'paused',
-            updatedAt: new Date().toISOString(),
-          };
-          fs.writeFileSync(filePath, JSON.stringify(updated, null, 2), 'utf-8');
-          res.json(updated);
-          return;
-        }
-      }
-      if (!found) res.status(404).json({ error: 'Evolution not found' });
-    } catch (e) {
-      res.status(500).json({ error: String(e) });
-    }
-  });
-
-  app.delete('/api/config/evolutions/:id', (req: Request, res: Response) => {
-    const id = req.params.id;
-    if (!id) {
-      res.status(400).json({ error: 'Bad request' });
-      return;
-    }
-    try {
-      const fromData = path.join(ctx.dataDir, 'evolutions');
-      const fromRoot = path.join(ctx.rootDir, 'evolutions');
-      for (const base of [fromData, fromRoot]) {
-        const filePath = path.join(base, `${id}.evolution`);
-        if (fs.existsSync(filePath)) {
-          fs.unlinkSync(filePath);
-          res.status(204).send();
-          return;
-        }
-      }
-      res.status(404).json({ error: 'Evolution not found' });
-    } catch (e) {
-      res.status(500).json({ error: String(e) });
-    }
-  });
-
-  app.post('/api/config/evolutions', (req: Request, res: Response) => {
-    const body = req.body as Partial<EvolutionFile>;
-    const speciesName = typeof body?.speciesName === 'string' ? body.speciesName.trim() : '';
-    const genePool = typeof body?.genePool === 'string' ? body.genePool : 'default.genes';
-    const evaluator = typeof body?.evaluator === 'string' ? body.evaluator : 'AI Quality';
-    const policy = typeof body?.policy === 'string' ? body.policy : 'balanced.ns';
-    const id = 'ev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
-    const now = new Date().toISOString();
-    const evolution: EvolutionFile = {
-      specVersion: '1.0',
-      id,
-      speciesName: speciesName || id,
-      genePool,
-      evaluator,
-      policy,
-      status: 'running',
-      scheduleType: 'continuous',
-      generation: 0,
-      bestScore: 0,
-      progressPercent: 0,
-      startedAt: now,
-      createdAt: now,
-      updatedAt: now,
-    };
-    try {
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-      const filePath = path.join(dir, `${id}.evolution`);
-      fs.writeFileSync(filePath, JSON.stringify(evolution, null, 2), 'utf-8');
-
       try {
         const manager = getEvolutionManager();
-        manager.startEvolution({
-          id,
-          speciesName: evolution.speciesName,
-          genePool,
-          evaluator,
-          policy,
-        });
+        manager.stopEvolution(id);
       } catch {
-        // 同上，manager 相关错误不影响配置写入与 API 返回
+        // Manager not initialized or process not running — continue to delete profile
       }
-
-      res.status(201).json(evolution);
+      fs.unlinkSync(filePath);
+      res.status(204).send();
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }

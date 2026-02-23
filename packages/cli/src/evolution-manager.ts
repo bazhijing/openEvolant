@@ -8,6 +8,9 @@ export interface EvolutionStartOptions {
   genePool: string;
   evaluator: string;
   policy: string;
+  budgetUsd?: number;
+  timeLimitMinutes?: number;
+  iterationCount?: number;
 }
 
 export interface EvolutionManagerInitOptions {
@@ -88,6 +91,7 @@ class EvolutionManager {
     if (!child) return;
     child.kill();
     this.processes.delete(id);
+    console.log(`Terminated evolution task: ${id}`);
   }
 
   private resolveGenesPath(genePool: string): string {
