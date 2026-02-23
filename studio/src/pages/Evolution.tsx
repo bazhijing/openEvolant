@@ -11,7 +11,6 @@ import {
   Input,
   Card,
   CardBody,
-  CardHeader,
   Chip,
   Dropdown,
   DropdownTrigger,
@@ -45,8 +44,19 @@ const IconPause = () => (
 const IconStop = () => (
   <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h12v12H6z" /></svg>
 );
+const IconClock = () => (
+  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+  </svg>
+);
+const IconLoop = () => (
+  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+  </svg>
+);
 
 type RunStatus = 'running' | 'paused';
+type ScheduleType = 'continuous' | 'scheduled';
 
 type ActiveRun = {
   id: string;
@@ -55,9 +65,10 @@ type ActiveRun = {
   evaluator: string;
   policy: string;
   status: RunStatus;
+  scheduleType?: ScheduleType;
   generation: number;
   bestScore: number;
-  progressPercent: number; // 0–100 for progress bar
+  progressPercent: number;
   startedAt: string;
 };
 
@@ -85,6 +96,7 @@ export default function Evolution() {
       evaluator: 'AI Quality',
       policy: 'balanced.ns',
       status: 'running',
+      scheduleType: 'continuous',
       generation: 12,
       bestScore: 0.87,
       progressPercent: 42,
@@ -97,6 +109,7 @@ export default function Evolution() {
       evaluator: 'Cost + Latency',
       policy: 'aggressive.ns',
       status: 'paused',
+      scheduleType: 'scheduled',
       generation: 8,
       bestScore: 0.72,
       progressPercent: 28,
@@ -114,6 +127,7 @@ export default function Evolution() {
         evaluator,
         policy,
         status: 'running',
+        scheduleType: 'continuous',
         generation: 0,
         bestScore: 0,
         progressPercent: 0,
@@ -160,7 +174,7 @@ export default function Evolution() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="max-w-4xl relative"
+      className="max-w-6xl relative"
     >
       {/* Subtle background decoration */}
       <div
@@ -234,97 +248,135 @@ export default function Evolution() {
               <p className="text-zinc-600 text-xs">{t('evolution.noActiveHint')}</p>
             </motion.div>
           ) : (
-            <ul className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
               {runs.map((run, i) => (
-                <motion.li
+                <motion.div
                   key={run.id}
                   layout
-                  initial={{ opacity: 0, y: 16 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, x: -20 }}
-                  transition={{ delay: i * 0.05 }}
+                  initial={{ opacity: 0, scale: 0.96 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.96 }}
+                  transition={{ delay: i * 0.04, duration: 0.25 }}
+                  className="h-full"
                 >
-                  <Card className="bg-surface-elevated border border-surface-border hover:border-neon-red/20 transition-all duration-200 group">
-                    <CardHeader className="flex flex-row items-start justify-between gap-3 pb-2">
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        <span
-                          className={`w-2.5 h-2.5 rounded-full shrink-0 ${
-                            run.status === 'running'
-                              ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)] animate-pulse'
-                              : 'bg-amber-500/80'
-                          }`}
-                        />
-                        <div className="min-w-0">
-                          <p className="text-xs font-mono text-zinc-500 truncate">{run.id}</p>
+                  <Card
+                    className={`h-full bg-surface-elevated/80 backdrop-blur-sm border overflow-hidden transition-all duration-300 group hover:shadow-lg ${
+                      run.status === 'running'
+                        ? 'border-emerald-500/30 hover:border-emerald-500/50 shadow-[0_0_24px_-8px_rgba(16,185,129,0.25)]'
+                        : 'border-surface-border hover:border-amber-500/30'
+                    }`}
+                  >
+                    {/* Top accent bar */}
+                    <div
+                      className={`h-0.5 w-full ${
+                        run.status === 'running'
+                          ? 'bg-gradient-to-r from-transparent via-emerald-500/80 to-transparent'
+                          : 'bg-gradient-to-r from-transparent via-amber-500/50 to-transparent'
+                      }`}
+                    />
+                    <CardBody className="p-4 flex flex-col gap-3">
+                      {/* Header: status dot + name + schedule badge + menu */}
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2 min-w-0 flex-1">
+                          <span
+                            className={`w-2 h-2 rounded-full shrink-0 ${
+                              run.status === 'running'
+                                ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.6)] animate-pulse'
+                                : 'bg-amber-500'
+                            }`}
+                          />
                           <h3 className="text-sm font-semibold text-white truncate">{run.speciesName}</h3>
                         </div>
-                        <Chip
-                          size="sm"
-                          variant="flat"
-                          classNames={{
-                            base:
-                              run.status === 'running'
-                                ? 'bg-emerald-500/15 border border-emerald-500/30'
-                                : 'bg-amber-500/15 border border-amber-500/30',
-                            content: run.status === 'running' ? 'text-emerald-400' : 'text-amber-400',
-                          }}
-                        >
-                          {run.status === 'running' ? t('evolution.statusRunning') : t('evolution.statusPaused')}
-                        </Chip>
+                        <div className="flex items-center gap-1 shrink-0">
+                          {run.scheduleType && (
+                            <Chip
+                              size="sm"
+                              variant="flat"
+                              startContent={run.scheduleType === 'continuous' ? <IconLoop /> : <IconClock />}
+                              classNames={{
+                                base: 'h-6 min-w-0 px-1.5 bg-white/5 border border-white/10',
+                                content: 'text-[10px] text-zinc-400',
+                              }}
+                            >
+                              {run.scheduleType === 'continuous' ? 'Continuous' : 'Scheduled'}
+                            </Chip>
+                          )}
+                          <Dropdown placement="bottom-end">
+                            <DropdownTrigger>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="light"
+                                className="min-w-6 w-6 h-6 opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-200 transition-opacity"
+                              >
+                                <IconMore />
+                              </Button>
+                            </DropdownTrigger>
+                            <DropdownMenu aria-label="Actions">
+                              <DropdownItem key="view">{t('evolution.view')}</DropdownItem>
+                              <DropdownItem key="pause" onPress={() => togglePause(run.id)}>
+                                {run.status === 'running' ? t('evolution.pause') : t('evolution.resume')}
+                              </DropdownItem>
+                              <DropdownItem key="stop" className="text-danger" onPress={() => stopRun(run.id)}>
+                                {t('evolution.stop')}
+                              </DropdownItem>
+                            </DropdownMenu>
+                          </Dropdown>
+                        </div>
                       </div>
-                      <Dropdown placement="bottom-end">
-                        <DropdownTrigger>
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="light"
-                            className="opacity-0 group-hover:opacity-100 text-zinc-400 hover:text-zinc-200"
-                          >
-                            <IconMore />
-                          </Button>
-                        </DropdownTrigger>
-                        <DropdownMenu aria-label="Actions">
-                          <DropdownItem key="view">{t('evolution.view')}</DropdownItem>
-                          <DropdownItem
-                            key="pause"
-                            onPress={() => togglePause(run.id)}
-                          >
-                            {run.status === 'running' ? t('evolution.pause') : t('evolution.resume')}
-                          </DropdownItem>
-                          <DropdownItem key="stop" className="text-danger" onPress={() => stopRun(run.id)}>
-                            {t('evolution.stop')}
-                          </DropdownItem>
-                        </DropdownMenu>
-                      </Dropdown>
-                    </CardHeader>
-                    <CardBody className="pt-0 space-y-3">
-                      <div className="flex items-center justify-between text-xs text-zinc-500">
-                        <span>{t('evolution.generation')}</span>
-                        <span className="font-mono text-zinc-300">{run.generation}</span>
+
+                      {/* Status chip */}
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        classNames={{
+                          base:
+                            run.status === 'running'
+                              ? 'bg-emerald-500/15 border border-emerald-500/25 w-fit'
+                              : 'bg-amber-500/15 border border-amber-500/25 w-fit',
+                          content: run.status === 'running' ? 'text-emerald-400 text-xs' : 'text-amber-400 text-xs',
+                        }}
+                      >
+                        {run.status === 'running' ? t('evolution.statusRunning') : t('evolution.statusPaused')}
+                      </Chip>
+
+                      {/* Metrics grid */}
+                      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-zinc-500">{t('evolution.generation')}</span>
+                          <span className="font-mono text-zinc-300 tabular-nums">{run.generation}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-zinc-500">{t('evolution.bestScore')}</span>
+                          <span className="font-mono text-neon-red tabular-nums">{run.bestScore.toFixed(2)}</span>
+                        </div>
                       </div>
-                      <div className="flex items-center justify-between text-xs text-zinc-500">
-                        <span>{t('evolution.bestScore')}</span>
-                        <span className="font-mono text-neon-red">{run.bestScore.toFixed(2)}</span>
-                      </div>
+
+                      {/* Progress */}
                       <div>
                         <div className="flex justify-between text-[10px] text-zinc-500 mb-1">
                           <span>{t('evolution.progress')}</span>
-                          <span className="font-mono">{run.progressPercent}%</span>
+                          <span className="font-mono tabular-nums">{run.progressPercent}%</span>
                         </div>
                         <Progress
                           size="sm"
                           value={run.progressPercent}
                           classNames={{
                             base: 'h-1.5 rounded-full bg-white/5',
-                            indicator: 'bg-gradient-to-r from-neon-red-dim to-neon-red rounded-full',
+                            indicator:
+                              run.status === 'running'
+                                ? 'bg-gradient-to-r from-emerald-500/80 to-neon-red rounded-full'
+                                : 'bg-gradient-to-r from-amber-500/60 to-amber-500/40 rounded-full',
                           }}
                         />
                       </div>
-                      <div className="flex gap-2 pt-1">
+
+                      {/* Actions */}
+                      <div className="flex gap-2 pt-0.5 mt-auto">
                         <Button
                           size="sm"
                           variant="flat"
-                          className="bg-white/5 text-zinc-300 hover:bg-neon-red/10 hover:text-neon-red"
+                          className="flex-1 bg-white/5 text-zinc-300 hover:bg-neon-red/10 hover:text-neon-red text-xs"
                           startContent={run.status === 'running' ? <IconPause /> : <IconPlay />}
                           onPress={() => togglePause(run.id)}
                         >
@@ -333,7 +385,7 @@ export default function Evolution() {
                         <Button
                           size="sm"
                           variant="light"
-                          className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10"
+                          className="text-zinc-400 hover:text-red-400 hover:bg-red-500/10 text-xs min-w-0 px-2"
                           startContent={<IconStop />}
                           onPress={() => stopRun(run.id)}
                         >
@@ -342,9 +394,9 @@ export default function Evolution() {
                       </div>
                     </CardBody>
                   </Card>
-                </motion.li>
+                </motion.div>
               ))}
-            </ul>
+            </div>
           )}
         </AnimatePresence>
       </div>
