@@ -8,7 +8,7 @@
   },
   "scripts": {
     "build": "npm run build:packages && npm run build:studio && npm run build:cli",
-    "build:packages": "npm run build -w @openevolant/shared && npm run build -w @openevolant/genes && npm run build -w @openevolant/evolution && npm run build -w @openevolant/evaluator && npm run build -w @openevolant/gateway && npm run build -w @openevolant/llm && npm run build -w @openevolant/agent-runner && npm run build -w @openevolant/agentic-loop",
+    "build:packages": "npm run build -w @openevolant/shared && npm run build -w @openevolant/genes && npm run build -w @openevolant/evolution && npm run build -w @openevolant/evaluator && npm run build -w @openevolant/gateway && npm run build -w @openevolant/llm && npm run build -w @openevolant/agentic-loop && npm run build -w @openevolant/evolution-runner",
     "build:studio": "npm run build -w studio",
     "build:cli": "npm run build -w @openevolant/cli",
     "dev": "concurrently \"npm run dev:server\" \"npm run dev:studio\"",
@@ -16,7 +16,7 @@
     "start": "node packages/cli/dist/cli.js start",
     "prepublishOnly": "npm run build",
     "postinstall": "node -e \"const fs=require('fs');if(!fs.existsSync('studio/dist')){console.log('OpenEvolant: 正在构建前端与 CLI...');require('child_process').execSync('npm run build',{stdio:'inherit'});}\"",
-    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true}); ['packages/genes','packages/evolution','packages/evaluator','packages/gateway','packages/agent-runner','packages/agentic-loop','packages/llm','packages/shared','packages/cli','studio'].forEach(p=>{const d=p+'/dist'; try{require('fs').rmSync(d,{recursive:true})}catch(e){}})\"",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true}); ['packages/genes','packages/evolution','packages/evaluator','packages/gateway','packages/agentic-loop','packages/evolution-runner','packages/llm','packages/shared','packages/cli','studio'].forEach(p=>{const d=p+'/dist'; try{require('fs').rmSync(d,{recursive:true})}catch(e){}})\"",
     "dev:server": "node packages/cli/dist/cli.js start --api-only"
   },
   "workspaces": [

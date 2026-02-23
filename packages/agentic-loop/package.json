@@ -5,6 +5,6 @@
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "scripts": { "build": "tsc" },
-  "dependencies": { "@openevolant/shared": "*", "@openevolant/genes": "*" },
+  "dependencies": { "@openevolant/shared": "*", "@openevolant/genes": "*", "@openevolant/llm": "*" },
   "engines": { "node": ">=18" }
 }

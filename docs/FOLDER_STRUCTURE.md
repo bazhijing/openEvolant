@@ -51,8 +51,8 @@ openEvolant/
 | `packages/evolution/` | Evolution Engine | 变异、重组、种群轮替 |
 | `packages/evaluator/` | Evaluator + Natural Selection | `.ns` 条件组合与 `.evaluator` 单条件评估、多维度打分（AI、成本、时间等） |
 | `packages/gateway/` | Gateway Server | 会话路由、Lane Queue，v0.1 仅 Web 单通道 |
-| `packages/agent-runner/` | Agent Runner | Gen 驱动 Prompt 构建、Session History、Memory、Context Window Guard；执行 tools/skills |
-| `packages/agentic-loop/` | Agentic Loop + Dispatcher | 是否 tool call、编排 Skills、调用 MCP |
+| `packages/agentic-loop/` | Agentic Loop | Gen 驱动 Prompt 构建 + 单轮/多轮生成 + Dispatcher（可先简化为单轮） |
+| `packages/evolution-runner/` | Evolution Runner | 进化编排：读 genes/ns/evaluator → 对每个 Gen 跑 Agentic Loop → 评估 → 选择 → 变异 → 写回 |
 | `packages/llm/` | LLM API | 大模型接入与配置，v0.1 优先支持 Kimi K2 |
 | `packages/shared/` | 公共类型与工具 | 跨包共用类型、常量、工具函数（TS 类型与 utils） |
 
@@ -109,8 +109,8 @@ Evolant Studio：v0.1 唯一入口，**TypeScript** Web GUI。构建产物（如
 
 ## 与 v0.1 的对应关系
 
-- **聊天**：`studio` 聊天页 → `packages/gateway` → `packages/agent-runner` → `packages/llm` → `packages/agentic-loop`，会话与历史落 `openevolant/data/sessions/`。
-- **进化管理**：`studio` 进化管理页 读/写 `packages/genes`、`packages/evaluator`，触发 `packages/evolution`，展示 `.genes` 与统计；自然选择来自 `.ns`，单条件评估来自 `openevolant/config/evaluator/` 或用户保存的 `.evaluator`。
+- **聊天**：`studio` 聊天页 → `packages/gateway` → `packages/agentic-loop`（含 Prompt 构建 + LLM 调用），会话与历史落 `openevolant/data/sessions/`。
+- **进化管理**：`studio` 进化管理页 读/写 `packages/genes`、`packages/evaluator`，触发 `packages/evolution-runner`（编排进化循环），展示 `.genes` 与统计；自然选择来自 `.ns`，单条件评估来自 `openevolant/config/evaluator/` 或用户保存的 `.evaluator`。
 - **任务意图 → skill / .genes**：在 `studio` 创建任务意图，对应新 skill 或已有 skill，进化过程写 `openevolant/data/genes/`，迭代信息写入 `.genes`。
 
 随实现可增删子目录，本文档随仓库实际结构更新。

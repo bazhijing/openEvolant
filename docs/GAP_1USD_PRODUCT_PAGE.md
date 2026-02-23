@@ -20,7 +20,7 @@
 | **Evaluator 配置与聚合** | ✅ | `.evaluator` 解析、`runConstraints`（含 `budgetMoney`）、`aggregateScore` 已存在。 |
 | **Natural Selection 配置** | ✅ | `.ns` 的 runConstraints、interruptConditions、evaluatorRefs 等已有规范与配置示例。 |
 | **Evolution 选择与种子** | ✅ | `selectTopByFitness`、`createSeedGen` 已实现。 |
-| **Agent Runner 骨架** | ✅ | `buildSystemPromptFromGen`、`buildMessages` 已有；Gen 驱动 system prompt 的形态在。 |
+| **Agentic Loop 骨架** | ✅ | `buildSystemPromptFromGen`、`buildMessages` 已在 agentic-loop 包；Gen 驱动 system prompt 的形态在。 |
 | **LLM 配置与类型** | ✅ | `LLMConfig`、`ChatMessage`、`ChatCompletionResult`（含 `usage`）已定义；Settings + default.llm.json 可配置多模型。 |
 | **模型价格与上下文** | ✅ | `config/llm/supported-vendors-models.json` 已有计费单位、输入/输出价格（CNY/USD）、contextLength。 |
 
@@ -67,7 +67,7 @@
 - **需要**（最小可跑闭环）：
   1. 加载 `.genes`（种群）、`.ns`（约束与评估器引用）、`.evaluator`（维度定义）；
   2. 对当前种群中每个 gen（或按预算采样有限个）：
-     - 用 agent-runner 根据 gen 构建 system prompt + 任务 user message（见下「任务定义」）；
+     - 用 agentic-loop 的 `buildSystemPromptFromGen` + `buildMessages` 根据 gen 构建 system prompt + 任务 user message（见下「任务定义」）；
      - 调 LLM 一次（或简单 loop：只取最终 text，不必须 tool call），得到「产品页」输出 + usage；
      - 用模块 2 算本次成本并累计，超预算则停；
      - 用模块 3 跑各 evaluator 维度（cost、美观等），得到 `scoresByDimension` → `aggregateScore` → fitness；
@@ -93,10 +93,10 @@
 
 ### 6. 任务定义与「产品页」输入/输出
 
-- **现状**：`TaskIntent` 有 id/name/skillId，但没有「本轮任务」的具象描述；agent-runner 的 `buildMessages` 需要 `userInput`，目前没有约定「产品页」任务从哪来。
+- **现状**：`TaskIntent` 有 id/name/skillId，但没有「本轮任务」的具象描述；agentic-loop 的 `buildMessages` 需要 `userInput`，目前没有约定「产品页」任务从哪来。
 - **需要**：
-  - **任务描述**：例如「生成一个单页产品页 HTML，要求：现代、简洁、美观」（可写死在编排器或从 .genes 的 taskIntent 关联的 config 读）。
-  - **user message**：每轮/每个 gen 可同一条，或加随机种子/变体（如不同产品名），以便有多样性；编排器在调用 `buildMessages(systemPrompt, history, userInput)` 时传入。
+  - **任务描述**：例如「生成一个单页产品页 HTML，要求：现代、简洁、美观」（可写死在 evolution-runner 或从 .genes 的 taskIntent 关联的 config 读）。
+  - **user message**：每轮/每个 gen 可同一条，或加随机种子/变体（如不同产品名），以便有多样性；evolution-runner 在调用 `buildMessages(systemPrompt, history, userInput)` 时传入。
   - **输出形态**：约定 LLM 直接输出 HTML 或 markdown；若需「产品页」图片，再考虑 MCP/Skill，v1 可先纯文本/HTML。
 - **影响**：无明确任务则「产品页」不明确，评估「美观」的对象也不明确。
 
@@ -110,9 +110,9 @@
 
 ---
 
-### 8. Context Window Guard（packages/agent-runner）
+### 8. Context Window Guard（packages/agentic-loop）
 
-- **现状**：`trimHistoryToFit` 未实现，直接返回原 history。
+- **现状**：`trimHistoryToFit` 在 agentic-loop 内未实现，直接返回原 history。
 - **需要**：按 token 估算（或用 LLM 返回的 usage）对 history 截断/压缩，保证不超模型 contextLength。
 - **影响**：长对话会爆窗；若 v1 每轮只发一条 user message、无长 history，可延后。
 
