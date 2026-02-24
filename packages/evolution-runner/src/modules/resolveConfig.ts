@@ -13,17 +13,24 @@ export type ResolvedLoopParams = {
   maxIterations: number;
 };
 
-function resolveGenesPathFromEnv(genePool: string): string | undefined {
+/**
+ * 根据 evolutionId 在用户数据 data 目录下生成 genesPath。
+ *
+ * 约定（与 openevolant/data/genes 一致）：
+ * - 基于 OPENEVOLANT_DATA_DIR
+ * - 路径形如：{OPENEVOLANT_DATA_DIR}/genes/{evolutionId}.genes
+ *
+ * 若缺少必要信息，则返回 undefined，由上层决定是否抛错或兜底。
+ */
+function resolveGenesPathFromEnv(evolutionId: string | undefined): string | undefined {
   const dataDir = process.env.OPENEVOLANT_DATA_DIR;
-  const filename = genePool.endsWith('.genes') ? genePool : `${genePool}.genes`;
+  if (!dataDir || !evolutionId) return undefined;
 
-  if (dataDir) {
-    const candidate = path.join(dataDir, 'genes', filename);
-    if (fs.existsSync(candidate)) return candidate;
-    return candidate;
-  }
-  if (path.isAbsolute(genePool)) return genePool;
-  return undefined;
+  const filename = `${evolutionId}.genes`;
+  const candidate = path.join(dataDir, 'genes', filename);
+
+  // 即使文件当前不存在，也返回约定好的路径，方便后续写入/初始化
+  return candidate;
 }
 
 function resolveNsPathFromEnv(policy: string): string | undefined {
@@ -44,16 +51,13 @@ export function resolveLoopParams(
   evolutionFilePath: string | null,
   evolutionId: string | undefined,
 ): ResolvedLoopParams {
-  const genePool =
-    typeof baseSpec.genePool === 'string' && baseSpec.genePool.trim()
-      ? baseSpec.genePool.trim()
-      : 'default.genes';
   const policy =
     typeof baseSpec.policy === 'string' && baseSpec.policy.trim()
       ? baseSpec.policy.trim()
       : '自然选择';
 
-  const genesPath = config.genesPath ?? resolveGenesPathFromEnv(genePool);
+  // genesPath 优先使用调用方显式传入，其次按 evolutionId 在 data 目录下生成
+  const genesPath = config.genesPath ?? resolveGenesPathFromEnv(evolutionId);
   const nsPath = config.nsPath ?? resolveNsPathFromEnv(policy);
 
   const taskUserMessage =
