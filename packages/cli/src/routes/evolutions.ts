@@ -166,17 +166,9 @@ export function registerEvolutionRoutes(
 
       try {
         const manager = getEvolutionManager();
-        manager.startEvolution({
-          id,
-          speciesName: evolution.speciesName,
-          genePool,
-          evaluator: evolution.evaluator,
-          policy,
-          taskContent: evolution.taskContent,
-          budgetUsd: evolution.budgetUsd,
-          timeLimitMs: evolution.timeLimitMs,
-          iterationCount: evolution.iterationCount,
-        });
+        // 这里只需要传 id，实际的 genePool / policy / taskContent 等
+        // 均在 EvolutionManager 内部从 .evolution 文件读取
+        manager.startEvolution({ id });
       } catch {
         // 如果 manager 尚未初始化，静默忽略以保证 API 不被阻塞
       }

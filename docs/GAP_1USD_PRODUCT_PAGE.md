@@ -14,15 +14,17 @@
 
 ## 已有、且可直接复用的部分
 
-| 模块 | 状态 | 说明 |
-|------|------|------|
-| **Gen / .genes 结构** | ✅ | `GenContent`、`Gen`、`GenesFile`、`taskIntent`、种群与 history 已定义；genes 包提供 `createEmptyGenesFile`、`addGen`、`setCurrentBest`。 |
-| **Evaluator 配置与聚合** | ✅ | `.evaluator` 解析、`runConstraints`（含 `budgetMoney`）、`aggregateScore` 已存在。 |
-| **Natural Selection 配置** | ✅ | `.ns` 的 runConstraints、interruptConditions、evaluatorRefs 等已有规范与配置示例。 |
-| **Evolution 选择与种子** | ✅ | `selectTopByFitness`、`createSeedGen` 已实现。 |
-| **Agentic Loop 骨架** | ✅ | `buildSystemPromptFromGen`、`buildMessages` 已在 agentic-loop 包；Gen 驱动 system prompt 的形态在。 |
-| **LLM 配置与类型** | ✅ | `LLMConfig`、`ChatMessage`、`ChatCompletionResult`（含 `usage`）已定义；Settings + default.llm.json 可配置多模型。 |
-| **模型价格与上下文** | ✅ | `config/llm/supported-vendors-models.json` 已有计费单位、输入/输出价格（CNY/USD）、contextLength。 |
+
+| 模块                       | 状态  | 说明                                                                                                                      |
+| ------------------------ | --- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Gen / .genes 结构**      | ✅   | `GenContent`、`Gen`、`GenesFile`、`taskIntent`、种群与 history 已定义；genes 包提供 `createEmptyGenesFile`、`addGen`、`setCurrentBest`。 |
+| **Evaluator 配置与聚合**      | ✅   | `.evaluator` 解析、`runConstraints`（含 `budgetMoney`）、`aggregateScore` 已存在。                                                 |
+| **Natural Selection 配置** | ✅   | `.ns` 的 runConstraints、interruptConditions、evaluatorRefs 等已有规范与配置示例。                                                    |
+| **Evolution 选择与种子**      | ✅   | `selectTopByFitness`、`createSeedGen` 已实现。                                                                               |
+| **Agentic Loop 骨架**      | ✅   | `buildSystemPromptFromGen`、`buildMessages` 已在 agentic-loop 包；Gen 驱动 system prompt 的形态在。                                 |
+| **LLM 配置与类型**            | ✅   | `LLMConfig`、`ChatMessage`、`ChatCompletionResult`（含 `usage`）已定义；Settings + default.llm.json 可配置多模型。                      |
+| **模型价格与上下文**             | ✅   | `config/llm/supported-vendors-models.json` 已有计费单位、输入/输出价格（CNY/USD）、contextLength。                                       |
+
 
 ---
 
@@ -67,11 +69,11 @@
 - **需要**（最小可跑闭环）：
   1. 加载 `.genes`（种群）、`.ns`（约束与评估器引用）、`.evaluator`（维度定义）；
   2. 对当前种群中每个 gen（或按预算采样有限个）：
-     - 用 agentic-loop 的 `buildSystemPromptFromGen` + `buildMessages` 根据 gen 构建 system prompt + 任务 user message（见下「任务定义」）；
-     - 调 LLM 一次（或简单 loop：只取最终 text，不必须 tool call），得到「产品页」输出 + usage；
-     - 用模块 2 算本次成本并累计，超预算则停；
-     - 用模块 3 跑各 evaluator 维度（cost、美观等），得到 `scoresByDimension` → `aggregateScore` → fitness；
-     - 把 fitness 写回该 gen（或写回内存中的 population，最后统一写 .genes）；
+    - 用 agentic-loop 的 `buildSystemPromptFromGen` + `buildMessages` 根据 gen 构建 system prompt + 任务 user message（见下「任务定义」）；
+    - 调 LLM 一次（或简单 loop：只取最终 text，不必须 tool call），得到「产品页」输出 + usage；
+    - 用模块 2 算本次成本并累计，超预算则停；
+    - 用模块 3 跑各 evaluator 维度（cost、美观等），得到 `scoresByDimension` → `aggregateScore` → fitness；
+    - 把 fitness 写回该 gen（或写回内存中的 population，最后统一写 .genes）；
   3. 用现有 `selectTopByFitness` 取 top N；
   4. 用「变异/重组」生成子代（见下）；
   5. 更新 population、history、currentBestGenId，写回 `.genes`；
@@ -136,41 +138,37 @@
 
 ## 建议实现顺序（仅从「跑通一次迭代」角度）
 
-1. **LLM 真实调用**（1）  
-   → 能拿到 content + usage，后续成本和评估才有输入。
-
-2. **成本计算 + 预算控制**（2）  
-   → 满足「1 美金」硬约束。
-
-3. **任务定义 + 产品页 user message**（6）  
-   → 与编排器一起定：单轮、单条 user message、输出即「产品页」文本/HTML。
-
-4. **评估器执行**（3）：至少实现 cost 维度和一个「美观」维度（如 LLM-as-judge）。  
-   → 进化才有目标函数。
-
-5. **变异（和可选的重组）**（5）  
-   → 一代跑完后能生成下一代。
-
-6. **进化循环编排器**（4）  
-   → 串联 1–5，读 .genes/.ns/.evaluator，跑一代：执行任务 → 评估 → 选择 → 变异 → 写回。
-
+1. **LLM 真实调用**（1）
+  → 能拿到 content + usage，后续成本和评估才有输入。
+2. **成本计算 + 预算控制**（2）
+  → 满足「1 美金」硬约束。
+3. **任务定义 + 产品页 user message**（6）
+  → 与编排器一起定：单轮、单条 user message、输出即「产品页」文本/HTML。
+4. **评估器执行**（3）：至少实现 cost 维度和一个「美观」维度（如 LLM-as-judge）。
+  → 进化才有目标函数。
+5. **变异（和可选的重组）**（5）
+  → 一代跑完后能生成下一代。
+6. **进化循环编排器**（4）
+  → 串联 1–5，读 .genes/.ns/.evaluator，跑一代：执行任务 → 评估 → 选择 → 变异 → 写回。
 7. 其余：Model Resolver（9）、Context Window Guard（8）、Agentic Loop 工具调用（7）、Studio 对接（10）可按需插入或延后。
 
 ---
 
 ## 小结表
 
-| # | 模块/实现点 | 优先级（跑通 1 美金迭代） |
-|---|-------------|----------------------------|
-| 1 | LLM 真实调用 | 必须 |
-| 2 | 成本计算与预算控制 | 必须 |
-| 3 | 评估器执行（cost + 美观等） | 必须 |
-| 4 | 进化循环编排器 | 必须 |
-| 5 | 变异（与可选重组） | 必须 |
-| 6 | 任务定义与产品页输入/输出 | 必须 |
-| 7 | Agentic Loop / Dispatcher（tool call） | 可选（单轮生成可先不做） |
-| 8 | Context Window Guard | 建议（长对话时必须） |
-| 9 | Model Resolver | 建议（多模型时必须） |
-| 10 | Studio 与进化后端对接 | 可选（观察与调试用） |
+
+| #   | 模块/实现点                               | 优先级（跑通 1 美金迭代） |
+| --- | ------------------------------------ | -------------- |
+| 1   | LLM 真实调用                             | 必须             |
+| 2   | 成本计算与预算控制                            | 必须             |
+| 3   | 评估器执行（cost + 美观等）                    | 必须             |
+| 4   | 进化循环编排器                              | 必须             |
+| 5   | 变异（与可选重组）                            | 必须             |
+| 6   | 任务定义与产品页输入/输出                        | 必须             |
+| 7   | Agentic Loop / Dispatcher（tool call） | 可选（单轮生成可先不做）   |
+| 8   | Context Window Guard                 | 建议（长对话时必须）     |
+| 9   | Model Resolver                       | 建议（多模型时必须）     |
+| 10  | Studio 与进化后端对接                       | 可选（观察与调试用）     |
+
 
 完成 **1 + 2 + 3 + 4 + 5 + 6** 后，即可在命令行或单测中「跑通」一次「1 美金预算内的产品页美观度进化」迭代；7–10 可在其后逐步补全。

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -77,6 +77,8 @@ const POLICY_OPTIONS = [
   { value: 'conservative', labelKey: 'evolution.policyConservative' as const },
 ];
 
+const PAGE_SIZE = 9;
+
 export default function Evolution() {
   const { t } = useTranslation();
   const [modalOpen, setModalOpen] = useState(false);
@@ -92,8 +94,9 @@ export default function Evolution() {
   const [loadError, setLoadError] = useState<string | null>(null);
 
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [currentPage, setCurrentPage] = useState(1);
 
-  const fetchEvolutions = () => {
+  const fetchEvolutions = useCallback(() => {
     return fetch(`${API_BASE}/api/evolutions`)
       .then((res) => {
         if (!res.ok) throw new Error(res.statusText);
@@ -102,7 +105,7 @@ export default function Evolution() {
       .then((data: { evolutions?: Evolution[] }) => {
         setEvolutions(Array.isArray(data.evolutions) ? data.evolutions : []);
       });
-  };
+  }, [setEvolutions]);
 
   useEffect(() => {
     setLoading(true);
@@ -110,7 +113,17 @@ export default function Evolution() {
     fetchEvolutions()
       .catch((e: unknown) => setLoadError(e instanceof Error ? e.message : 'Failed to fetch'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [fetchEvolutions]);
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      // 轮询刷新任务状态，忽略单次错误
+      fetchEvolutions().catch(() => {});
+    }, 1000);
+    return () => {
+      window.clearInterval(intervalId);
+    };
+  }, [fetchEvolutions]);
 
   const handleStart = async () => {
     try {
@@ -172,6 +185,22 @@ export default function Evolution() {
     }
     return evolutions;
   }, [evolutions, statusFilter]);
+
+  const totalPages = useMemo(
+    () => (filteredEvolutions.length === 0 ? 1 : Math.ceil(filteredEvolutions.length / PAGE_SIZE)),
+    [filteredEvolutions.length],
+  );
+
+  const paginatedEvolutions = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filteredEvolutions.slice(start, start + PAGE_SIZE);
+  }, [filteredEvolutions, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   return (
     <motion.div
@@ -250,7 +279,10 @@ export default function Evolution() {
                 <button
                   key={value}
                   type="button"
-                  onClick={() => setStatusFilter(value as StatusFilter)}
+                  onClick={() => {
+                    setStatusFilter(value as StatusFilter);
+                    setCurrentPage(1);
+                  }}
                   className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all duration-200 ${
                     statusFilter === value
                       ? value === 'all'
@@ -321,7 +353,7 @@ export default function Evolution() {
             </motion.div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-4">
-              {filteredEvolutions.map((evolution, i) => (
+              {paginatedEvolutions.map((evolution, i) => (
                 <motion.div
                   key={evolution.id}
                   layout
@@ -452,6 +484,50 @@ export default function Evolution() {
             </div>
           )}
         </AnimatePresence>
+        {filteredEvolutions.length > PAGE_SIZE && (
+          <div className="mt-5 flex items-center justify-center">
+            <div className="inline-flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-1.5 text-xs text-zinc-300">
+              <button
+                type="button"
+                className={`px-2 py-1 rounded-lg border border-transparent ${
+                  currentPage === 1 ? 'text-zinc-500 cursor-default' : 'hover:border-neon-red/40 hover:text-neon-red'
+                }`}
+                disabled={currentPage === 1}
+                onClick={() => currentPage > 1 && setCurrentPage((p) => p - 1)}
+              >
+                ‹
+              </button>
+              {Array.from({ length: totalPages }, (_, idx) => {
+                const page = idx + 1;
+                const isActive = page === currentPage;
+                return (
+                  <button
+                    key={page}
+                    type="button"
+                    className={`min-w-[1.75rem] px-2 py-1 rounded-lg border text-xs tabular-nums ${
+                      isActive
+                        ? 'bg-neon-red/20 border-neon-red/60 text-neon-red shadow-[0_0_12px_-4px_rgba(255,8,68,0.6)]'
+                        : 'border-transparent text-zinc-400 hover:border-neon-red/40 hover:text-neon-red'
+                    }`}
+                    onClick={() => setCurrentPage(page)}
+                  >
+                    {page}
+                  </button>
+                );
+              })}
+              <button
+                type="button"
+                className={`px-2 py-1 rounded-lg border border-transparent ${
+                  currentPage === totalPages ? 'text-zinc-500 cursor-default' : 'hover:border-neon-red/40 hover:text-neon-red'
+                }`}
+                disabled={currentPage === totalPages}
+                onClick={() => currentPage < totalPages && setCurrentPage((p) => p + 1)}
+              >
+                ›
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* New evolution modal — core feature, premium layout. Wrapped in div to avoid ref from motion.div causing React ref warning. */}
