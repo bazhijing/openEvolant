@@ -18,11 +18,12 @@ export interface EvolutionFile {
   budgetUsd?: number;
   /** 时间限制（毫秒） */
   timeLimitMs?: number;
-  /** 迭代轮数 */
+  /** 已执行的迭代轮数（由 runner 累加写回） */
   iterationCount?: number;
   /** running | paused，v1 仅此两种 */
   status: 'running' | 'paused';
   scheduleType?: 'continuous' | 'scheduled';
+  /** 计划的最大迭代轮数（上限），创建任务时写入 */
   generation: number;
   bestScore: number;
   progressPercent: number;
@@ -39,7 +40,10 @@ export interface EvolutionListItem {
   policy: string;
   status: 'running' | 'paused';
   scheduleType?: 'continuous' | 'scheduled';
+  /** 计划的最大迭代轮数（上限） */
   generation: number;
+  /** 已执行的迭代轮数 */
+  iterationCount?: number;
   bestScore: number;
   progressPercent: number;
   startedAt: string;
@@ -64,7 +68,11 @@ function readEvolutionsFromDir(dir: string): EvolutionListItem[] {
         policy: typeof spec.policy === 'string' ? spec.policy : '',
         status,
         scheduleType: spec.scheduleType,
-        generation: typeof spec.generation === 'number' ? spec.generation : 0,
+        generation: typeof spec.generation === 'number' && spec.generation > 0 ? spec.generation : 0,
+        iterationCount:
+          typeof spec.iterationCount === 'number' && spec.iterationCount >= 0
+            ? spec.iterationCount
+            : 0,
         bestScore: typeof spec.bestScore === 'number' ? spec.bestScore : 0,
         progressPercent: typeof spec.progressPercent === 'number' ? spec.progressPercent : 0,
         startedAt: typeof spec.startedAt === 'string' ? spec.startedAt : spec.createdAt ?? new Date().toISOString(),
@@ -118,6 +126,24 @@ export function registerEvolutionRoutes(
   ctx: ServerContext
 ): void {
   const dir = resolveEvolutionsDir(ctx);
+  const nsDir = path.join(ctx.configDir, 'ns');
+
+  function tryReadMaxIterationsFromPolicy(policy: string): number | undefined {
+    try {
+      const filename = policy.endsWith('.ns') ? policy : `${policy}.ns`;
+      const filePath = path.join(nsDir, filename);
+      if (!fs.existsSync(filePath)) return undefined;
+      const raw = fs.readFileSync(filePath, 'utf-8');
+      if (!raw.trim()) return undefined;
+      const spec = JSON.parse(raw) as {
+        runConstraints?: { maxIterations?: number };
+      };
+      const v = spec?.runConstraints?.maxIterations;
+      return typeof v === 'number' && v > 0 ? v : undefined;
+    } catch {
+      return undefined;
+    }
+  }
 
   // /api/evolutions — 主接口
   app.get('/api/evolutions', (_req: Request, res: Response) => {
@@ -136,7 +162,10 @@ export function registerEvolutionRoutes(
     const taskContent = typeof body?.taskContent === 'string' ? body.taskContent.trim() || undefined : undefined;
     const budgetUsd = typeof body?.budgetUsd === 'number' && body.budgetUsd >= 0 ? body.budgetUsd : undefined;
     const timeLimitMs = typeof body?.timeLimitMs === 'number' && body.timeLimitMs >= 1 ? body.timeLimitMs : undefined;
-    const iterationCount = typeof body?.iterationCount === 'number' && body.iterationCount >= 2 ? body.iterationCount : undefined;
+    const requestedMaxIterations =
+      typeof body?.iterationCount === 'number' && body.iterationCount >= 2 ? body.iterationCount : undefined;
+    const policyMaxIterations = tryReadMaxIterationsFromPolicy(policy);
+    const maxIterations = requestedMaxIterations ?? policyMaxIterations ?? 0;
     const id = 'ev-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6);
     const now = new Date().toISOString();
     const evolution: EvolutionFile = {
@@ -149,10 +178,11 @@ export function registerEvolutionRoutes(
       taskContent,
       budgetUsd,
       timeLimitMs,
-      iterationCount,
+      // 迭代信息：generation = 最大上限，iterationCount = 当前已执行轮数（创建时为 0）
+      iterationCount: 0,
       status: 'running',
       scheduleType: 'continuous',
-      generation: 0,
+      generation: maxIterations,
       bestScore: 0,
       progressPercent: 0,
       startedAt: now,

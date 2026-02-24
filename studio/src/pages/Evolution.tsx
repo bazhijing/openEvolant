@@ -18,6 +18,7 @@ import {
   DropdownMenu,
   DropdownItem,
   Tooltip,
+  Progress,
 } from '@heroui/react';
 
 // Icons
@@ -63,7 +64,10 @@ type Evolution = {
   policy: string;
   status: 'running' | 'paused';
   scheduleType?: 'continuous' | 'scheduled';
+  /** 计划的最大迭代轮数（上限），来自 .evolution generation 字段 */
   generation: number;
+  /** 已执行的迭代轮数，来自 .evolution iterationCount 字段 */
+  iterationCount?: number;
   bestScore: number;
   progressPercent: number;
   startedAt: string;
@@ -428,20 +432,36 @@ export default function Evolution() {
                       <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
                         <div className="flex justify-between">
                           <span className="text-zinc-500">{t('evolution.generation')}</span>
-                          <span className="font-mono text-zinc-300 tabular-nums">{evolution.generation}</span>
+                          <span className="font-mono text-zinc-300 tabular-nums">
+                            {evolution.generation && evolution.generation > 0
+                              ? `${evolution.iterationCount ?? 0}/${evolution.generation}`
+                              : evolution.iterationCount ?? 0}
+                          </span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-zinc-500">{t('evolution.bestScore')}</span>
                           <span className="font-mono text-neon-red tabular-nums">{evolution.bestScore.toFixed(2)}</span>
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-zinc-500">{t('evolution.genePool')}</span>
-                          <span className="font-mono text-zinc-300 truncate max-w-[100px]" title={evolution.genePool}>{evolution.genePool}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-zinc-500">{t('evolution.progress')}</span>
-                          <span className="font-mono text-zinc-300 tabular-nums">{evolution.progressPercent}%</span>
-                        </div>
+                      </div>
+
+                      <div className="mt-1.5">
+                        <Progress
+                          aria-label={t('evolution.progress')}
+                          size="sm"
+                          value={evolution.progressPercent}
+                          maxValue={100}
+                          showValueLabel
+                          classNames={{
+                            base: 'w-full',
+                            label: 'text-[11px] text-zinc-500',
+                            value: 'text-[11px] font-mono text-zinc-300 tabular-nums',
+                            track: 'bg-black/30 border border-white/5 h-1.5',
+                            indicator:
+                              evolution.status === 'running'
+                                ? 'bg-gradient-to-r from-emerald-400 via-emerald-300 to-emerald-500 shadow-[0_0_14px_rgba(16,185,129,0.6)]'
+                                : 'bg-gradient-to-r from-amber-400 via-amber-300 to-amber-500 shadow-[0_0_14px_rgba(245,158,11,0.6)]',
+                          }}
+                        />
                       </div>
 
                       <div className="flex gap-2 pt-0.5 mt-auto items-center">

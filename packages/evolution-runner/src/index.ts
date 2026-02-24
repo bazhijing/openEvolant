@@ -6,10 +6,11 @@ import path from 'path';
  *
  * 当前版本：从 .evolution 配置 + 运行环境中自动解析：
  * - genesPath / nsPath（根据 genePool / policy 和 OPENEVOLANT_* 目录）
- * - taskUserMessage / budgetUsd / timeLimitMs / iterationCount / evolutionId
+ * - taskUserMessage / budgetUsd / timeLimitMs / maxIterations / evolutionId
  *
  * 并模拟进化循环，在每一轮结束后把最新的进度写回对应的 .evolution 文件：
- * - generation：累加轮次
+ * - generation：计划的最大迭代轮数（上限），保持不变
+ * - iterationCount：已执行的轮次，逐轮累加
  * - bestScore：使用模拟 score 单调提升
  * - progressPercent：按 iterationCount 或实际轮次数计算 0–100%
  * - updatedAt：每轮更新
@@ -28,7 +29,7 @@ export type EvolutionRunnerConfig = {
   budgetUsd?: number;
   /** 时间限制（毫秒，来自 .evolution 配置） */
   timeLimitMs?: number;
-  /** 迭代轮数（来自 .evolution 配置） */
+  /** 最大迭代轮数上限（可选覆盖 .evolution 中 generation） */
   iterationCount?: number;
 };
 
@@ -156,12 +157,16 @@ export async function runEvolutionLoop(config: EvolutionRunnerConfig): Promise<v
         ? baseSpec.timeLimitMs
         : undefined;
 
-  const iterationCount =
-    typeof config.iterationCount === 'number'
+  // 最大迭代轮数（优先使用 config 覆盖，其次使用 .evolution 中 generation，否则默认 3）
+  const maxIterationsFromSpec =
+    typeof baseSpec.generation === 'number' && baseSpec.generation > 0
+      ? baseSpec.generation
+      : undefined;
+
+  const maxIterations =
+    typeof config.iterationCount === 'number' && config.iterationCount > 0
       ? config.iterationCount
-      : typeof baseSpec.iterationCount === 'number'
-        ? baseSpec.iterationCount
-        : undefined;
+      : maxIterationsFromSpec ?? 3;
 
   console.log('[evolution-runner] 进化循环启动');
   if (evolutionId) {
@@ -188,12 +193,7 @@ export async function runEvolutionLoop(config: EvolutionRunnerConfig): Promise<v
   if (typeof timeLimitMs === 'number') {
     console.log('[evolution-runner] timeLimitMs:', timeLimitMs);
   }
-  if (typeof iterationCount === 'number') {
-    console.log('[evolution-runner] iterationCount:', iterationCount);
-  }
-
-  const maxIterations =
-    typeof iterationCount === 'number' && iterationCount > 0 ? iterationCount : 3;
+  console.log('[evolution-runner] maxIterations:', maxIterations);
   const startedAt = Date.now();
   let usedBudget = 0;
 
@@ -235,9 +235,9 @@ export async function runEvolutionLoop(config: EvolutionRunnerConfig): Promise<v
 
     // 从 .evolution 中读出当前进度，并写回本轮结束后的结果
     const spec = readEvolutionSpec(evolutionFilePath);
-    const prevGeneration =
-      typeof spec.generation === 'number' && Number.isFinite(spec.generation)
-        ? spec.generation
+    const prevExecutedIterations =
+      typeof spec.iterationCount === 'number' && Number.isFinite(spec.iterationCount)
+        ? spec.iterationCount
         : 0;
     const prevBestScore =
       typeof spec.bestScore === 'number' && Number.isFinite(spec.bestScore)
@@ -245,20 +245,21 @@ export async function runEvolutionLoop(config: EvolutionRunnerConfig): Promise<v
         : 0;
 
     const totalPlannedIterations =
-      typeof spec.iterationCount === 'number' && spec.iterationCount > 0
-        ? spec.iterationCount
+      typeof spec.generation === 'number' && spec.generation > 0
+        ? spec.generation
         : maxIterations;
 
-    const nextGeneration = prevGeneration + 1;
+    const nextExecutedIterations = Math.min(prevExecutedIterations + 1, totalPlannedIterations);
     const nextBestScore = Math.max(prevBestScore, simulatedScore);
     const completedRatio = Math.max(
       0,
-      Math.min(1, nextGeneration / totalPlannedIterations),
+      Math.min(1, nextExecutedIterations / totalPlannedIterations),
     );
 
     const updatedSpec = {
       ...spec,
-      generation: nextGeneration,
+      generation: totalPlannedIterations,
+      iterationCount: nextExecutedIterations,
       bestScore: nextBestScore,
       progressPercent: Math.round(completedRatio * 100),
       updatedAt: new Date().toISOString(),
@@ -267,7 +268,7 @@ export async function runEvolutionLoop(config: EvolutionRunnerConfig): Promise<v
     writeEvolutionSpec(evolutionFilePath, updatedSpec);
 
     console.log(
-      `[evolution-runner] 第 ${round} 轮 结束，generation=${nextGeneration}, bestScore=${nextBestScore.toFixed(
+      `[evolution-runner] 第 ${round} 轮 结束，iterationCount=${nextExecutedIterations}, generation=${totalPlannedIterations}, bestScore=${nextBestScore.toFixed(
         4,
       )}, progress=${updatedSpec.progressPercent}%`,
     );
