@@ -31,6 +31,7 @@ const IconTrending = () => (
 );
 
 const API_BASE = import.meta.env.DEV ? 'http://127.0.0.1:3000' : '';
+const PAGE_SIZE = 9;
 
 /** 前端展示用：基因组（来自 /api/config/genes） */
 type Genome = {
@@ -68,6 +69,7 @@ export default function Genes() {
   const [genomes, setGenomes] = useState<Genome[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [currentPage, setCurrentPage] = useState(1);
 
   useEffect(() => {
     setLoading(true);
@@ -99,6 +101,22 @@ export default function Genes() {
     }
     return list;
   }, [genomes, search, statusFilter]);
+
+  const totalPages = useMemo(
+    () => (filtered.length === 0 ? 1 : Math.ceil(filtered.length / PAGE_SIZE)),
+    [filtered.length],
+  );
+  const paginatedList = useMemo(() => {
+    const start = (currentPage - 1) * PAGE_SIZE;
+    return filtered.slice(start, start + PAGE_SIZE);
+  }, [filtered, currentPage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) setCurrentPage(totalPages);
+  }, [currentPage, totalPages]);
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, statusFilter]);
 
   const avgScore = genomes.length > 0
     ? (genomes.reduce((a, g) => a + g.score, 0) / genomes.length).toFixed(2)
@@ -197,7 +215,7 @@ export default function Genes() {
             exit={{ opacity: 0 }}
             className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3"
           >
-            {filtered.map((genome, i) => (
+            {paginatedList.map((genome, i) => (
               <motion.div
                 key={genome.id}
                 initial={{ opacity: 0, y: 12 }}
@@ -278,6 +296,52 @@ export default function Genes() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* 分页：只要有结果就显示 */}
+      {!loading && !loadError && filtered.length > 0 && (
+        <div className="mt-5 flex items-center justify-center">
+          <div className="inline-flex items-center gap-2 rounded-xl bg-white/5 border border-white/10 px-3 py-1.5 text-xs text-zinc-300">
+            <button
+              type="button"
+              className={`px-2 py-1 rounded-lg border border-transparent ${
+                currentPage === 1 ? 'text-zinc-500 cursor-default' : 'hover:border-neon-red/40 hover:text-neon-red'
+              }`}
+              disabled={currentPage === 1}
+              onClick={() => currentPage > 1 && setCurrentPage((p) => p - 1)}
+            >
+              ‹
+            </button>
+            {Array.from({ length: totalPages }, (_, idx) => {
+              const page = idx + 1;
+              const isActive = page === currentPage;
+              return (
+                <button
+                  key={page}
+                  type="button"
+                  className={`min-w-[1.75rem] px-2 py-1 rounded-lg border text-xs tabular-nums ${
+                    isActive
+                      ? 'bg-neon-red/20 border-neon-red/60 text-neon-red shadow-[0_0_12px_-4px_rgba(255,8,68,0.6)]'
+                      : 'border-transparent text-zinc-400 hover:border-neon-red/40 hover:text-neon-red'
+                  }`}
+                  onClick={() => setCurrentPage(page)}
+                >
+                  {page}
+                </button>
+              );
+            })}
+            <button
+              type="button"
+              className={`px-2 py-1 rounded-lg border border-transparent ${
+                currentPage === totalPages ? 'text-zinc-500 cursor-default' : 'hover:border-neon-red/40 hover:text-neon-red'
+              }`}
+              disabled={currentPage === totalPages}
+              onClick={() => currentPage < totalPages && setCurrentPage((p) => p + 1)}
+            >
+              ›
+            </button>
+          </div>
+        </div>
+      )}
     </motion.div>
   );
 }

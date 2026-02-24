@@ -86,8 +86,8 @@ export function registerGenesRoutes(
   app: import('express').Application,
   ctx: ServerContext
 ): void {
-  const userGenesDirFromData = path.join(ctx.dataDir, 'genes');
-  const userGenesDirFromRoot = path.join(ctx.rootDir, 'genes');
+  // 运行时基因池统一放在 <root>/data/genes（例如 openevolant/data/genes）
+  const userGenesDir = path.join(ctx.dataDir, 'genes');
 
   app.get('/api/config/genes', (_req: Request, res: Response) => {
     try {
@@ -98,10 +98,9 @@ export function registerGenesRoutes(
         genomes.push(...readGenesFromDir(repoGenesDir, 'preset'));
       }
 
-      const fromData = readGenesFromDir(userGenesDirFromData, 'user');
-      const fromRoot = readGenesFromDir(userGenesDirFromRoot, 'user');
+      const userGenomes = readGenesFromDir(userGenesDir, 'user');
       const seenIds = new Set(genomes.map((g) => g.id));
-      for (const g of [...fromData, ...fromRoot]) {
+      for (const g of userGenomes) {
         if (!seenIds.has(g.id)) {
           seenIds.add(g.id);
           genomes.push(g);
